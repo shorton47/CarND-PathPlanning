@@ -187,12 +187,12 @@ vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> m
 int main() {
     
     //---
-    // NOTE: Key constants for main
+    // NOTE: Key constants & init values for main
     //---
     string map_file_ = "../data/highway_map.csv";  // Waypoint map to read from
     double const FULL_TRACK_S = 6945.554;          // s value before wrapping around the track back to 0 (meters)
     int lane = 1;                                  // Define lane (0=Far Left, 1=Center, 2=Far Right)
-    double ref_velocity = 49.00;                   // Reference velocity for the car (start at max)
+    double ref_vel = 49.25;                      // Car speed (start at max)
     //---
     
     uWS::Hub h;
@@ -229,8 +229,7 @@ int main() {
     } // end Waypoint map load
 
     
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane, &ref_velocity]
-              (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+    h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane,&ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -285,29 +284,58 @@ int main() {
             
             // Simulator returns previous car path at each timestep
             int prev_size = previous_path_x.size();
+            cout << "previous path points=" << prev_size << endl;
             
             
-            // 1st thing is to check if car in front (this might go in "prediction or behavior section
-            
-            
-            
-            
-            
+            // 1st thing is to check if car in front (this might go in "prediction" or behavior section. Yes predicition section as predicting
+            // if going to run into car or need to brake
             
             
             
+            if (prev_size > 0) {
+                car_s = end_path_s;
+            }
+            
+            bool too_close = false; // Assume ok until
+            
+            for (int i=0; i<sensor_fusion.size(); i++) {
+            
+                float d = sensor_fusion[i][6];  // displacement (d) of a detected car (lane it's in)
+                
+                // If ith car is in my lane
+                if (d > (2+4*lane-2) && d < (2+4*lane+2)) {
+                
+                    double vx = sensor_fusion[i][3];
+                    double vy = sensor_fusion[i][4];
+                    double ahead_car_speed = sqrt(vx*vx + vy*vy);  // MPH??
+                    double ahead_car_s = sensor_fusion[i][5];
+                    
+                    ahead_car_s += ((double)prev_size*.02*ahead_car_speed); // if using previous points can project s value out in time because using previous points
+                
+                    // If in front and less than gap, slow down relative to car in front
+                    if ((ahead_car_s > car_s) && ((ahead_car_s - car_s) < 30)) {
+                    
+                        cout << "Car in my lane! Car#=" << i << " v=" << ahead_car_speed << " at " << ahead_car_s << endl;
+                        
+                        //ref_vel = .90*ahead_car_speed;
+                        ref_vel = 40.0;
+                    }
+                } // if
+            } // for
             
             
             
             
             
             // Widely spaced waypoints, evenly spaced at 30m (anchor points)
-            vector<double> ptsx;  // Anchor points for trajectory spline
-            vector<double> ptsy;
+            vector<double> ptsx = {};  // Anchor points for trajectory spline
+            vector<double> ptsy = {};
             
             double ref_x = car_x;
             double ref_y = car_y;
             double ref_yaw = deg2rad(car_yaw);
+            
+            cout << ref_x << " " << ref_y << " " << car_yaw << " " << ref_yaw << endl;
             //double car_yaw_r = deg2rad(car_yaw);
             
             if (prev_size < 2) {
@@ -369,7 +397,11 @@ int main() {
             }
 
             tk::spline s;
-            
+        
+            cout << "ptsx size=" << ptsx.size() << endl;
+            cout << "ptsx before spline=" << ptsx[0] << endl;
+            cout << "ptsy before spline=" << ptsy[0] << endl;
+        
             s.set_points(ptsx,ptsy);  // Create spline from anchor points
             
             
@@ -377,8 +409,8 @@ int main() {
             
             //---
             // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
+            vector<double> next_x_vals = {};
+            vector<double> next_y_vals = {};
 
             for (int i=0; i<previous_path_x.size(); i++) {
                 next_x_vals.push_back(previous_path_x[i]);
@@ -393,7 +425,7 @@ int main() {
             double x_add_on = 0;  // Start at vehicle x=0
             for (int i=1; i<=50-previous_path_x.size(); i++) {
             
-                double N = (target_dist/(.02*ref_velocity/2.24)); // convert from mph to m/s
+                double N = (target_dist/(.02*ref_vel/2.24)); // convert from mph to m/s
                 double x_point = x_add_on + (target_x/N);
                 double y_point = s(x_point);
                 
