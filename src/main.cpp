@@ -341,16 +341,17 @@ public:
         double ref_yaw = deg2rad(sdc_yaw); //?? units but used later
         
         //cout << ref_x << " " << ref_y << " " << car_yaw << " " << ref_yaw << endl;
-        //double car_yaw_r = deg2rad(car_yaw);
+        double car_yaw_r = deg2rad(sdc_yaw);
+       
         int prev_size = previous_path_x.size();
         if (prev_size < 2) {
             
             // Path tangent to current angle of the car
-            double prev_car_x = sdc_x - cos(sdc_yaw);  // Need to convert to radians?
-            double prev_car_y = sdc_y - sin(sdc_yaw);
+            //double prev_car_x = sdc_x - cos(sdc_yaw);  // Need to convert to radians?
+            //double prev_car_y = sdc_y - sin(sdc_yaw);
             
-            //double prev_car_x = car_x - cos(car_yaw_r);  // Need to convert to radians?
-            //double prev_car_y = car_y - sin(car_yaw_r);
+            double prev_car_x = sdc_x - cos(car_yaw_r);  // Need to convert to radians?
+            double prev_car_y = sdc_y - sin(car_yaw_r);
             
             ptsx.push_back(prev_car_x);
             ptsx.push_back(sdc_x);
@@ -390,6 +391,8 @@ public:
         ptsy.push_back(next_wp1[1]);
         ptsy.push_back(next_wp2[1]);
         
+        
+        
         // Transfer points into car reference frame (keeps spline well behaved, easier math. Class hint)
         for (int i=0; i<ptsx.size(); i++ ) {
             
@@ -415,6 +418,7 @@ public:
         
         //---
         // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
+        // With Anchor points & car's previous path, build a
         vector<double> next_x_vals = {};
         vector<double> next_y_vals = {};
         
@@ -450,14 +454,11 @@ public:
             
             next_x_vals.push_back(x_point);
             next_y_vals.push_back(y_point);
-        }
+        } // for
         
-        }; // update_Trajectory
-        
-        
-        
-        
-    }; // SelfDrivingCar Class
+    }; // update_Trajectory
+    
+}; // SelfDrivingCar Class
     
     
     
@@ -698,16 +699,16 @@ int main() {
             double ref_yaw = deg2rad(car_yaw); //?
             
             //cout << ref_x << " " << ref_y << " " << car_yaw << " " << ref_yaw << endl;
-            //double car_yaw_r = deg2rad(car_yaw);
+            double car_yaw_r = deg2rad(car_yaw);
             
             if (prev_size < 2) {
             
                 // Path tangent to current angle of the car
-                double prev_car_x = car_x - cos(car_yaw);  // Need to convert to radians?
-                double prev_car_y = car_y - sin(car_yaw);
+                //double prev_car_x = car_x - cos(car_yaw);  // Need to convert to radians?
+                //double prev_car_y = car_y - sin(car_yaw);
                 
-                //double prev_car_x = car_x - cos(car_yaw_r);  // Need to convert to radians?
-                //double prev_car_y = car_y - sin(car_yaw_r);
+                double prev_car_x = car_x - cos(car_yaw_r);  // Need to convert to radians?
+                double prev_car_y = car_y - sin(car_yaw_r);
             
                 ptsx.push_back(prev_car_x);
                 ptsx.push_back(car_x);
@@ -735,17 +736,29 @@ int main() {
             }
             
             // Translate to Frenet Space & create more points
+            
             vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
             vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
             vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
             
+            
+            /*
+            vector<double> next_wp0 = getXY(car_s+25, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp1 = getXY(car_s+50, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp2 = getXY(car_s+75, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp3 = getXY(car_s+100, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            */
+            
+            
             ptsx.push_back(next_wp0[0]);
             ptsx.push_back(next_wp1[0]);
             ptsx.push_back(next_wp2[0]);
+            //ptsx.push_back(next_wp3[0]);
             
             ptsy.push_back(next_wp0[1]);
             ptsy.push_back(next_wp1[1]);
             ptsy.push_back(next_wp2[1]);
+            //ptsy.push_back(next_wp3[1]);
             
             // Transfer points into car reference frame (keeps spline well behaved, easier math. Class hint)
             for (int i=0; i<ptsx.size(); i++ ) {
