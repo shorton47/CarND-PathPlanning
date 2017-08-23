@@ -51,10 +51,10 @@ double miles2meters(double x) { return x * 1609.3440; }
 // Important Constants at Project Level: Simulator, Track, & ...
 //
 #define FULL_TRACK_S 6945.554  // One loop of Simulator track (meters)
-#define FPS 50                 // Telemetry data frames/sec (FPS) from Simulator
-#define DELTA_T 0.02           // Associated delta_t of FPS (sec)
+#define FPS        50          // Telemetry data frames/sec (FPS) from Simulator
+#define DELTA_T    0.02        // Associated delta_t of fixed FPS (sec)
+#define NUM_LANES  3           // Maximum number of lanes. Fixed in this Simulator
 #define LANE_WIDTH 4.0         // Width of each lane (meters)
-#define MAX_LANES 3            // Maximum number of lanes on Width of each lane (meters)
 
 
 
@@ -214,9 +214,217 @@ vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> m
 
 }
 
+///--- ANOTHER CLASS FOR TRACKING CARS
+class Tracked_Vehicle {
+
+public:
+    
+//private:
+    // Public Data
+    double id;
+    double x;
+    double y;
+    double vx;
+    double vy;
+    double v;
+    double s;
+    double d;
+    
+    // Calculated
+    double delta_s;
+    
+    
+//public:
+    Tracked_Vehicle() {
+        id = 0.0;
+        x = 0.0;
+        y = 0.0;
+        vx = 0.0;
+        vy = 0.0;
+        s = 0.0;
+        d = 0.0;
+        v = 0.0;
+        
+        delta_s = 0.0;
+
+        
+        
+    }
+    
+    
+    
+    /* A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d pos
+     */
+    Tracked_Vehicle(vector<double> one_car_sensor_fusion) {
+        
+        id = one_car_sensor_fusion[0];  // Car unique ID
+        x  = one_car_sensor_fusion[1];  // x position in map coord
+        y  = one_car_sensor_fusion[2];  // y position in map coord
+        vx = one_car_sensor_fusion[3];  // x velocity in m/s
+        vy = one_car_sensor_fusion[4];  // y velocity in m/s
+        s  = one_car_sensor_fusion[5];  // s position in Frenet
+        d  = one_car_sensor_fusion[6];  // d position in Frenet
+        
+    }
+
+    
+    
+    
+    
+    
+    
+    Tracked_Vehicle(double id, double x, double y, double vx, double vy, double s, double d){
+        this->id = id;
+        this->x = x;
+        this->y = y;
+        this->vx = vx;
+        this->vy = vy;
+        this->s = s;
+        this->d = d;
+        this->v = std::sqrt(vx*vx + vy*vy);
+    }
+    
+    // Trivial destructor
+    ~Tracked_Vehicle() = default;
+    
+    
+    // Update car w/ localization data returned from Simulator.
+    // Note: this is extra copy. Could be eliminated for speed but done for readability.
+    void setData(double id, double x, double y, double vx, double vy, double s, double d) {
+        
+        this->id = id;
+        this->x = x;
+        this->y = y;
+        this->vx = vx;
+        this->vy = vy;
+        this->s = s;
+        this->d = d;
+        this->v = std::sqrt(vx*vx + vy*vy);
+        
+    };
+    
+    
+    void add_Sensor_Fusion_Data(vector<double> one_car_sensor_fusion) {
+        
+        id = one_car_sensor_fusion[0];  // Car unique ID
+        x  = one_car_sensor_fusion[1];  // x position in map coord
+        y  = one_car_sensor_fusion[2];  // y position in map coord
+        vx = one_car_sensor_fusion[3];  // x velocity in m/s
+        vy = one_car_sensor_fusion[4];  // y velocity in m/s
+        s  = one_car_sensor_fusion[5];  // s position in Frenet
+        d  = one_car_sensor_fusion[6];  // d position in Frenet
+        
+    }
+
+    
+    
+    
+    
+    
+    // Update car w/ localization data returned from Simulator.
+    // Note: this is extra copy. Could be eliminated for speed but done for readability.
+    void getData(Tracked_Vehicle tracked_vehicle) {
+        
+        id = tracked_vehicle.id;
+        x  = tracked_vehicle.x;
+        y  = tracked_vehicle.y;
+        vx = tracked_vehicle.vx;
+        vy = tracked_vehicle.vy;
+        s  = tracked_vehicle.s;
+        d  = tracked_vehicle.d;
+        
+        v = std::sqrt(vx*vx + vy*vy);
+        
+    };
+
+    
+    
+    
+    
+    
+    
+    //bool operator < (Tracked_Vehicle &rhs) {return s < rhs.s;}  // Overloaded < operator for object comparison
+
+    //bool SortByAscendingS(Tracked_Vehicle const &lhs, Tracked_Vehicle const &rhs) {return lhs.s < rhs.s;}
+    
+    
+    bool operator<(const Tracked_Vehicle &b)
+    {
+        return (s < b.s);
+    }
+    
+    bool operator=(const Tracked_Vehicle &a)
+    {
+        id = a.id;
+        x = a.x;
+        y = a.y;
+        vx = a.vx;
+        vy = a.vy;
+        s = a.s;
+        d = a.d;
+        v = std::sqrt(a.vx*a.vx + a.vy*a.vy);
+        
+        
+        return (true);
+    }
+    
+    
+    
+    
+    
+    
+    double predict(double t){
+        // assuming s", d' and d" = 0
+        return s + v*t;
+    }
+    
+    // Getters
+    double getID(){
+        // assuming s", d' and d" = 0
+        return id;
+    }
+    
+    double getS(){
+        // assuming s", d' and d" = 0
+        return s;
+    }
+    
+    double getDelta_S(){
+        // assuming s", d' and d" = 0
+        return delta_s;
+    }
+
+    
+    
+    void setDelta_S(double in_delta_s){
+        delta_s = in_delta_s;
+    }
+    
+    
+};
+
+
+struct SortByAscendingS
+{
+    bool operator()(const Tracked_Vehicle &lhs, const Tracked_Vehicle &rhs)
+    {
+        return (lhs.s < rhs.s);
+    }
+};
+
+struct SortByAscendingDeltaS
+{
+    bool operator()(const Tracked_Vehicle &lhs, const Tracked_Vehicle &rhs)
+    {
+        return (lhs.delta_s < rhs.delta_s);
+    }
+};
+
+
+
 
 ///------------------
-// Build Class of An Autnomous Vehicle
+// Self Driving Car Class
 //
 
 
@@ -277,12 +485,13 @@ public:
     // Note: this is extra copy. Could be eliminated for speed but done for readability.
     void update_LocalizationData(double x, double y, double s, double d, double yaw, double speed, \
                                  double endpath_s, double endpath_d) {
-        sdc_x = x;
-        sdc_y = y;
-        sdc_s = s;
-        sdc_d = d;
-        sdc_yaw = yaw;
-        sdc_speed=speed;
+       
+        sdc_x = x;       // car x (meters) in map
+        sdc_y = y;       // car y (meters) in map
+        sdc_s = s;       // car s (meters) in Frenet coord (along track)
+        sdc_d = d;       // car d (meters) in Frenet coord (displacement from center lane)
+        sdc_yaw = yaw;   // car angle (degrees) in map. Note: Simulation begins with car at 0 degrees pointing straight ahead
+        sdc_speed=speed; // car speed (MPH)
         sdc_endpath_s = endpath_s;
         sdc_endpath_d = endpath_d;
     
@@ -293,9 +502,17 @@ public:
     // This is a predicition because Trajectory update can always
     // Input: Car data & Car State data (previous path & sensor data)
     // Output: target lane (sdc_lane) and velocity (sdc_velocity). Availablity internally & by Get
-    void update_Behavior(const vector<double> &previous_path_x, const double &previous_path_y, \
+    void update_Behavior(const vector<double> &previous_path_x, const vector<double> &previous_path_y, \
                          const vector<vector<double>> &sensor_fusion) {
+        
     
+        /* A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d position in frenet coordinates.
+         */
+        
+        
+        
+        
+        
    
 
     //
@@ -337,12 +554,16 @@ public:
         vector<double> ptsy = {};
         
         double ref_x = sdc_x;
-        double ref_y = sdc_y;
-        double ref_yaw = deg2rad(sdc_yaw); //?? units but used later
+        double ref_y = sdc_y; // car y (meters) in map
+        double ref_yaw = deg2rad(sdc_yaw); // car yaw (degrees)?? units but used later
         
         //cout << ref_x << " " << ref_y << " " << car_yaw << " " << ref_yaw << endl;
         double car_yaw_r = deg2rad(sdc_yaw);
        
+        
+        //
+        // 1st 2 anchor points - 1 point behind car, 1 point is car
+        //
         int prev_size = previous_path_x.size();
         if (prev_size < 2) {
             
@@ -378,7 +599,8 @@ public:
             
         }
         
-        // Create 3 Ahead Anchor Points to Frenet Space & create more points
+        //
+        // Create 3 more ahead Anchor Points to Frenet Space & create more points
         vector<double> next_wp0 = getXY(sdc_s+30, (2+4*sdc_lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
         vector<double> next_wp1 = getXY(sdc_s+60, (2+4*sdc_lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
         vector<double> next_wp2 = getXY(sdc_s+90, (2+4*sdc_lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
@@ -472,7 +694,8 @@ int main() {
     //---
     // NOTE: Key constants & init values for main
     //---
-    string map_file_ = "../data/highway_map.csv";  // Waypoint map to read from
+    //string map_file_ = "../data/highway_map.csv";  // Waypoint map to read from
+    string map_file_ = "../data/highway_map_bosch1.csv";
     //string map_file_ = "../data/highway_map_bosch1.csv";  // Waypoint map to read from
     //double const FULL_TRACK_S = 6945.554;          // s value before wrapping around the track back to 0 (meters)
     int lane = 1;                                  // Define lane (0=Far Left, 1=Center, 2=Far Right)
@@ -481,6 +704,62 @@ int main() {
     double dt = .02;                        // This project is a perfect simulator and delta time is fixed per frame (sec)
     double fps = 1.0/dt;
     //---
+   
+    //int cars_ahead[NUM_LANES][12];
+    array<vector<float>,NUM_LANES> cars_ahead = {};
+    
+    cars_ahead[0].push_back(3.5);
+    cars_ahead[0].push_back(4.5);
+    cars_ahead[0].push_back(2.5);
+
+    cars_ahead[1].push_back(13.5);
+    cars_ahead[1].push_back(14.5);
+    
+    cars_ahead[2].push_back(.5);
+    cars_ahead[2].push_back(45.5);
+    cars_ahead[2].push_back(3.5);
+    cars_ahead[2].push_back(2.5);
+    
+    
+    cout << "lane0=" << cars_ahead[0].size() << " lane1=" << cars_ahead[1].size() << " lane2=" << cars_ahead[2].size() << endl;
+    
+    sort(cars_ahead[0].begin(), cars_ahead[0].end());
+    sort(cars_ahead[1].begin(), cars_ahead[1].end());
+    sort(cars_ahead[2].begin(), cars_ahead[2].end());
+
+    
+    cout << cars_ahead[0][0] << " " <<  cars_ahead[0][1] << " " <<  cars_ahead[0][2] << endl;
+    cout << cars_ahead[1][0] << " " <<  cars_ahead[1][1] << endl;
+    cout << cars_ahead[2][0] << " " <<  cars_ahead[2][1] << " " <<  cars_ahead[2][2] << endl;
+    cars_ahead = {};
+    cout << "lane0=" << cars_ahead[0].size() << " lane1=" << cars_ahead[1].size() << " lane2=" << cars_ahead[2].size() << endl;
+
+    
+    // More complicated Array of vectors
+    array<vector<Tracked_Vehicle>,NUM_LANES> cars_ahead2 = {};
+    
+    Tracked_Vehicle tracked_vehicle(1.0,1.0,1.0,1.0,1.0,1.0,1.0);
+    tracked_vehicle.setData(1.0,1.0,1.0,1.0,1.0,0.75,1.0);
+    cars_ahead2[0].push_back(tracked_vehicle);
+    tracked_vehicle.setData(1.0,1.0,1.0,1.0,1.0,0.5,1.0);
+    cars_ahead2[0].push_back(tracked_vehicle);
+
+    cout << "l0=" << cars_ahead2[0].size() << " l1=" << cars_ahead2[1].size() << " l2=" << cars_ahead2[2].size() << endl;
+    
+    //sort(cars_ahead2[0].begin(), cars_ahead[0].end(),SortByAscending);
+    //sort(cars_ahead2[0].begin(), cars_ahead2[0].end());  // Sorts by ascending S based on class definition
+    sort(cars_ahead2[0].begin(), cars_ahead2[0].end(), SortByAscendingS());  // Sorts by ascending S based on class definition
+    
+   // Tracked_Vehicle first_vehicle(cars_ahead2[0].pop_back());
+    Tracked_Vehicle first_vehicle = {};
+    first_vehicle = cars_ahead2[0].front(); // Right now this is a copy!!!!
+    
+    //double first_vehicle_s = first_vehicle.getS;
+    cout << "first vehicle s=" << first_vehicle.getS() << endl;
+    cout << "first vehicle s=" << cars_ahead2[0].front().getS() << endl;
+    cout << "# of cars in lane 0=" << cars_ahead2[0].size() << endl;
+
+    
     
     // Create Websocket message object
     uWS::Hub h;
@@ -543,59 +822,87 @@ int main() {
         string event = j[0].get<string>();
         
         if (event == "telemetry") {
-          
+ 
             //
-            // Section #1 : Get all data returned from Simulator
-            //
-            //double car_x;
-            //auto previous_path_x = {NULL};
-            //auto previous_path_y = {NULL};
-
-            //double car_y;
-            //double car_s;
-            //double car_d;
-            //double car_yaw;
-            //double car_speed;
-            
-            // Previous path data given to the Planner
-            //auto previous_path_x = j[1]["previous_path_x"];
-            //auto previous_path_y = j[1]["previous_path_y"];
-            
-            // Previous path's end s and d values
-            //double end_path_s = j[1]["end_path_s"];
-            //double end_path_d = j[1]["end_path_d"];
-            //convertServerJSONTelemetryToCarData(j, car_x);
-            //convertServerJSONToCarTelemetryData(j,car_x, car_y, car_s, car_d, car_yaw, car_speed, previous_path_x,
-            //previous_path_y, end_path_s, end_path_d);
-            
-            
-            // j[1] is the data JSON object
-        	// Main car's localization Data
-          	double car_x = j[1]["x"];  // car x (meters) in map coord
-          	double car_y = j[1]["y"];  // car y (meters) in map coord
-          	double car_s = j[1]["s"];  // car s (meters) in Frenet coord (along track)
-          	double car_d = j[1]["d"];  // car d (meters) in Frenet coord (displacement from center)
-          	double car_yaw = j[1]["yaw"];  // car angle in map coord (degrees or radians????)
+            // Step #0: Get all data returned from Simulator
+            // Car's localization data for this frame. j[1] is the data JSON object from Simulation Server
+          	//
+            double car_x = j[1]["x"];          // car x (meters) in map coord
+          	double car_y = j[1]["y"];          // car y (meters) in map coord
+          	double car_s = j[1]["s"];          // car s (meters) in Frenet coord (along track)
+          	double car_d = j[1]["d"];          // car d (meters) in Frenet coord (displacement from center)
+          	double car_yaw = j[1]["yaw"];      // car angle in map coord (degrees!)
           	double car_speed = j[1]["speed"];  // car speed in map coord (MPH!)
 
             // Previous path's end s and d values
-            double end_path_s = j[1]["end_path_s"];
-            double end_path_d = j[1]["end_path_d"];
-            
+            double end_path_s = j[1]["end_path_s"];  // car path far end s (meters) in Frenet coord (along track)
+            double end_path_d = j[1]["end_path_d"];  // car path far end d (meters) in Frenet coord (displacement from center)
             
           	// Previous path data given to the Planner
-          	auto previous_path_x = j[1]["previous_path_x"];
-          	auto previous_path_y = j[1]["previous_path_y"];
+          	auto previous_path_x = j[1]["previous_path_x"];  // car's previous frame full trajectory path x (meters) in map coord
+          	auto previous_path_y = j[1]["previous_path_y"];  // car's previous frame full trajectory path y (meters) in map coord
           	
-            
-
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
-          	auto sensor_fusion = j[1]["sensor_fusion"];
+          	auto sensor_fusion = j[1]["sensor_fusion"]; // Array of detected other cars from car's sensors
             
-            /* A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d position in frenet coordinates.
-            */
+            cout << "after json" << endl;
             //---
+            //
+            // Step #1: Update Car's Localization data
+            //
+            av1.update_LocalizationData(car_x,car_y,car_s,car_d,car_yaw,car_speed,end_path_s,end_path_d);
+            cout << "after Localization" << endl;
             
+            //
+            // Step #2. Update Car's Sensor Localization Data (i.e. other nearby cars called "sensor fusion")
+            //
+            // Experiment
+            array<vector<Tracked_Vehicle>,NUM_LANES> cars = {};
+            array<vector<Tracked_Vehicle>,NUM_LANES> cars_ahead = {};
+            array<vector<Tracked_Vehicle>,NUM_LANES> cars_behind = {};
+            Tracked_Vehicle tracked_car = {};
+            
+            
+            for (int i=0; i<sensor_fusion.size(); i++) {
+                
+                float d = sensor_fusion[i][6];
+                
+                if (d >= 0.0 && d <= 12.0) {
+                    
+                    if (d >= 0.0 && d < 4.0) {
+                        float delta_s = (float)sensor_fusion[i][5] - car_s;
+                        cout << "l0: id,d,sf,cars,delta_s=" << i     << " " << d << " " << (float)sensor_fusion[i][5] << " " \
+                                                            << car_s << " " << delta_s << endl;
+                       
+                        tracked_car.add_Sensor_Fusion_Data(sensor_fusion[i]);
+                        tracked_car.setDelta_S(delta_s);
+                        
+                        if ((delta_s > 0.0) && (delta_s <= 150.0)) {
+                            cars_ahead[0].push_back(tracked_car);
+                        } else if ((delta_s < 0.0) && (delta_s >= -150.0)) {
+                            cars_behind[0].push_back(tracked_car);
+                        }
+                    
+                        
+                    }
+                }
+            } // for
+            sort(cars_ahead[0].begin(), cars_ahead[0].end(), SortByAscendingDeltaS());
+            cout << "# of cars in lanes AHEAD=" << cars_ahead[0].size();
+            if (cars_ahead[0].size() > 0) { cout << " closest=" << cars_ahead[0].front().getDelta_S() << endl; };
+            
+            sort(cars_behind[0].begin(), cars_behind[0].end(), SortByAscendingDeltaS());
+            cout << "# of cars in lanes BEHIND=" << cars_behind[0].size();
+            if (cars_behind[0].size() > 0) { cout<< " closest=" << cars_behind[0].front().getDelta_S() << endl; };
+                
+                
+                
+            //
+            // Step #2: Update car's behavior based on localization data & state
+            //
+            av1.update_Behavior(previous_path_x, previous_path_y, sensor_fusion);
+            cout << "after Behavior" << endl;
+
             //
             // Section #2. - Prediction /  Proceess vehicle data
             //
@@ -609,9 +916,9 @@ int main() {
             //
             
             // Simulator returns previous car path at each timestep
-            int prev_size = previous_path_x.size();
-            int detected_cars = sensor_fusion.size();
-            cout << " # of cars detected=" << detected_cars << " Previous car path points=" << prev_size << endl;
+            int prev_path_size = previous_path_x.size();
+            //int detected_cars = sensor_fusion.size();
+            //cout << " # of cars detected=" << detected_cars << " Previous car path points=" << prev_size << endl;
             //cout << "previous path points=" << prev_size << endl;
             
             
@@ -621,8 +928,11 @@ int main() {
             //
             // This seems to have both "predicition" and  "behavior" in it
             //
+            double ahead_car_speed;
             
-            if (prev_size > 0) {
+            
+            // ???????This is weird because we already hve car_s and this puts it at the end of last path
+            if (prev_path_size > 0) {
                 car_s = end_path_s; // This means out at the far end of the trajectory
             }
             
@@ -638,13 +948,13 @@ int main() {
                 
                     double vx = sensor_fusion[i][3];
                     double vy = sensor_fusion[i][4];
-                    double ahead_car_speed = sqrt(vx*vx + vy*vy);  // MPH??
+                    ahead_car_speed = sqrt(vx*vx + vy*vy);  // MPH??
                     double ahead_car_s = sensor_fusion[i][5];
                     
-                    ahead_car_s += ((double)prev_size*.02*ahead_car_speed); // if using previous points can project s value out in time because using previous points
+                    ahead_car_s += ((double)prev_path_size*.02*ahead_car_speed); // if using previous points can project s value out in time because using previous points
                     cout << "ahead_car_s=" << ahead_car_s << endl;
                     // If in front and less than gap, slow down relative to car in front
-                    if ((ahead_car_s > car_s) && ((ahead_car_s - car_s) < 30)) {
+                    if ((ahead_car_s > car_s) && ((ahead_car_s - car_s) < 50)) {
                     
                         cout << "Car in my lane! Car#=" << i << " v=" << ahead_car_speed << " at " << ahead_car_s << endl;
                         
@@ -659,13 +969,46 @@ int main() {
                         } else if (lane == 0) {
                             lane = 1;
                             cout << "Switch from left to center" << endl;
+                        } else if (lane == 2) {
+                            lane = 1;
+                            cout << "Switch from right to center" << endl;
                         }
                         
                     } // if
                 } // if
+                
+                
+                
             } // for
             
             
+            /* THis is better in that it looks from center lane if anyone to left OR right!!!
+            // Slow down or
+            // change lane
+            //ref_vel = 29.5;
+            too_close = true;
+            if((lane == 0) && (lane_1.size() == 0) )
+            {
+                lane = 1;
+            }
+            else if((lane == 1) && (lane_0.size() == 0) )
+            {
+                lane = 0;
+            }
+            else if((lane == 1) && (lane_2.size() == 0) )
+            {
+                lane = 2;
+            }
+            else if((lane == 2) && (lane_1.size() == 0) )
+            {
+                lane = 1;
+            }
+        }
+*/
+          
+          
+          
+          
             //
             // Maybe this is supposed to be behavior section??
             //
@@ -675,72 +1018,85 @@ int main() {
                 //ref_vel -= .224; // ~ 5m/s**2 ??
                 //ref_vel -= .250; // ~ 5m/s**2 ??
                 //ref_vel -= .1250; // ~ 5m/s**2 ??
-                ref_vel -= .1750; // ~ 5m/s**2 ??
+                //ref_vel -= .1750; // ~ 5m/s**2 ??
+                ref_vel -= .01*ahead_car_speed; // ~ 5m/s**2 ??
     
             
-            } else if (ref_vel < 49.40) {
+            } else if (ref_vel < 49.575) {
             
-                ref_vel += .50;
+                //ref_vel += .50;
+                ref_vel += .425;
             
             }
             
             //
-            // I think this starts the trajectory generation section
+            // Trajectory generation uses anchor points (from Map Waypoints & Previous Car Path) and splines to generate a high
+            // frequency car trajectory that is fed to the Simulator Server that sets BOTH the position and speed of the car.
+            // This is done in 2 sections by generating the anchor points & then creating a high frequency spline fit using the
+            // anchor points.
             //
+            // Note: For numerical stability, the points are translated to vehicle space and fitted around the horizontal axis
+            // (instead of the vertical) and then translated back.
             // Using 5 anchor points to send to spline 1 point behind car, car and 3 ahead at 30, 60 & 90 m
             
+            //
+            // Section 1: Create 5 trajectory anchor points (spread out over full distance of interest)
+            //
             
-            // Widely spaced waypoints, evenly spaced at 30m (anchor points)
-            vector<double> ptsx = {};  // Anchor points for trajectory spline
+            // Widely spaced anchor points from waypoints & previous path points ultimately for trajectory spline
+            vector<double> ptsx = {};
             vector<double> ptsy = {};
             
             double ref_x = car_x;
             double ref_y = car_y;
-            double ref_yaw = deg2rad(car_yaw); //?
+            double ref_yaw = deg2rad(car_yaw); // Need to convert to radians from degrees
             
-            //cout << ref_x << " " << ref_y << " " << car_yaw << " " << ref_yaw << endl;
-            double car_yaw_r = deg2rad(car_yaw);
-            
-            if (prev_size < 2) {
+            // 1st 2 anchor points are one point behind car and one point is car (makes transition smooth)
+            if (prev_path_size < 2) {
             
                 // Path tangent to current angle of the car
-                //double prev_car_x = car_x - cos(car_yaw);  // Need to convert to radians?
-                //double prev_car_y = car_y - sin(car_yaw);
+                double ref_yaw = deg2rad(car_yaw); // Need to convert from degrees
+                double prev_car_x = car_x - cos(ref_yaw);
+                double prev_car_y = car_y - sin(ref_yaw);
                 
-                double prev_car_x = car_x - cos(car_yaw_r);  // Need to convert to radians?
-                double prev_car_y = car_y - sin(car_yaw_r);
-            
+                // P1
                 ptsx.push_back(prev_car_x);
-                ptsx.push_back(car_x);
-                
                 ptsy.push_back(prev_car_y);
+                
+                // P2
+                ptsx.push_back(car_x);
                 ptsy.push_back(car_y);
-            
             
             } else {
             
-                ref_x = previous_path_x[prev_size-1];
-                ref_y = previous_path_y[prev_size-1];
-                
-                double ref_x_prev = previous_path_x[prev_size-2];
-                double ref_y_prev = previous_path_y[prev_size-2];
-                ref_yaw = atan2(ref_y-ref_y_prev, ref_x-ref_x_prev);
-                
                 // Use 2 points that make path tangent to the previous path's end points
-                ptsx.push_back(ref_x_prev);
-                ptsx.push_back(ref_x);
+                ref_x = previous_path_x[prev_path_size-1];
+                ref_y = previous_path_y[prev_path_size-1];
+                double ref_x_prev = previous_path_x[prev_path_size-2];
+                double ref_y_prev = previous_path_y[prev_path_size-2];
+                // Where is translation????
+                ref_yaw = atan2(ref_y-ref_y_prev, ref_x-ref_x_prev); // ??? ref_yaw not BEING USED????? Being used later
                 
+               
+                // P1
+                ptsx.push_back(ref_x_prev);
                 ptsy.push_back(ref_y_prev);
+                
+                // P2
+                ptsx.push_back(ref_x);
                 ptsy.push_back(ref_y);
             
             }
             
-            // Translate to Frenet Space & create more points
-            
+            //
+            // For next 3 (look-ahead) points,  Translate to Frenet Space & create more points  evenly spaced at 30m (anchor points)
+            //
+            //cout << "car_s=" << car_s << " " << 2+4*lane << endl;
             vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
             vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
             vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            
+            //cout << "wp0,1,2=" << next_wp0[0] << " " << next_wp1[0] << " " << next_wp2[0] << endl;
+            //cout << "wp0,1,2=" << next_wp0[1] << " " << next_wp1[1] << " " << next_wp2[1] << endl;
             
             /*
             vector<double> next_wp0 = getXY(car_s+25, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
@@ -767,18 +1123,23 @@ int main() {
                 double shift_x = ptsx[i] - ref_x;
                 double shift_y = ptsy[i] - ref_y;
                 
-                ptsx[i] = (shift_x*cos(0-ref_yaw) - shift_y*sin(0-ref_yaw));
-                ptsy[i] = (shift_x*sin(0-ref_yaw) + shift_y*cos(0-ref_yaw));
+                ptsx[i] = (shift_x*cos(0.0-ref_yaw) - shift_y*sin(0.0-ref_yaw));
+                ptsy[i] = (shift_x*sin(0.0-ref_yaw) + shift_y*cos(0.0-ref_yaw));
             }
 
-            tk::spline s;
-        
-            cout << "ptsx,ptsy size=" << ptsx.size() << endl;
-            //cout << "ptsx before spline=" << ptsx[0] << endl;
-            //cout << "ptsy before spline=" << ptsy[0] << endl;
-        
             
-            s.set_points(ptsx,ptsy);  // Create spline from anchor points
+            cout << "ptsx,ptsy size=" << ptsx.size() << endl;
+            cout << "ptsx before spline=" << ptsx[0] << " " << ptsx[1] << " " << ptsx[2] << " " << ptsx[3] << " " << ptsx[4] << endl;
+            cout << "ptsy before spline=" << ptsy[0] << " " << ptsy[1] << " " << ptsy[2] << " " << ptsy[3] << " " << ptsy[4] << endl;
+            
+            
+            //
+            // Section 2: Create full, high frequency trajectory with anchor points (spread out over full distance of interest)
+            //
+            
+            // Create fitted spline coefficients from anchor points
+            tk::spline s;
+            s.set_points(ptsx,ptsy);
             
             
             
@@ -794,7 +1155,7 @@ int main() {
             }
             
             // Generate points ahead of car along spline (in local/car coordinates) TODO Change x,y to car_, car_y
-            double target_x = 30.0;  // horizon meters ahead
+            double target_x = 100.0;  // 30 horizon meters ahead
             double target_y = s(target_x);
             double target_dist = sqrt((target_x*target_x) + (target_y*target_y));
             
@@ -821,15 +1182,9 @@ int main() {
                 next_x_vals.push_back(x_point);
                 next_y_vals.push_back(y_point);
             
-            
-            
-            
-            
-            
-            
             }
             
-            // Do through Class
+            // Do through Object structure
             vector<double> updated_x_points = {};
             vector<double> updated_y_points = {};
             //av1.update_Trajectory(previous_path_x, previous_path_y, map_waypoints_x, map_waypoints_y, map_waypoints_s, \
