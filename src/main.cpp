@@ -523,10 +523,13 @@ struct SortByDescendingDeltaS
 
 double min_Delta_S(vector<Tracked_Vehicle> &tracked_cars) {
 
-    double min_delta_s = LARGE_NUM_DBL; // Start w/ large #
+    //double min_delta_s = LARGE_NUM_DBL; // Start w/ large #
+    double min_delta_s = __DBL_MAX__;  // Start w/ large #
 
-    for (vector<Tracked_Vehicle>::iterator it = tracked_cars.begin(); it!=tracked_cars.end(); ++it) {
-        min_delta_s = min(min_delta_s, it->delta_s);  // Compare delta_s in Tracked_Vehicle object
+    if (tracked_cars.size() > 0) {
+        for (vector<Tracked_Vehicle>::iterator it = tracked_cars.begin(); it!=tracked_cars.end(); ++it) {
+            min_delta_s = min(min_delta_s, it->delta_s);  // Compare delta_s in Tracked_Vehicle object
+        }
     }
     
     return min_delta_s;
@@ -534,11 +537,14 @@ double min_Delta_S(vector<Tracked_Vehicle> &tracked_cars) {
 
 double max_Delta_S(vector<Tracked_Vehicle> &tracked_cars) {
     
-    double max_delta_s = -LARGE_NUM_DBL; // Start w/ large negative #
+    //double max_delta_s = -LARGE_NUM_DBL; // Start w/ large negative #
+    double max_delta_s = -__DBL_MAX__; // Start w/ large negative #
     
-    for (vector<Tracked_Vehicle>::iterator it = tracked_cars.begin(); it!=tracked_cars.end(); ++it) {
-        //cout << "-" << max_delta_s << "," << it->delta_s << endl;
-        max_delta_s = max(max_delta_s, it->delta_s);  // Compare delta_s in Tracked_Vehicle object
+    if (tracked_cars.size() > 0) {
+        for (vector<Tracked_Vehicle>::iterator it = tracked_cars.begin(); it!=tracked_cars.end(); ++it) {
+            //cout << "-" << max_delta_s << "," << it->delta_s << endl;
+            max_delta_s = max(max_delta_s, it->delta_s);  // Compare delta_s in Tracked_Vehicle object
+        }
     }
     
     return max_delta_s;
@@ -1736,7 +1742,7 @@ int main() {
             double min_cost = __DBL_MAX__;
             vector<int> feasible_lanes = {};
             
-            
+            // Piviot on current self driving car State
             switch(av1.get_State()) {
                 
                 // Emergency State. Same new State until ahead_vehicle clears enough
@@ -1768,7 +1774,7 @@ int main() {
                     break;
                  */
                     
-                // KeepLane State.
+                // Current State = KeepLane.
                 // All the ACTION This is where FSM calculates cost of 3 options and decides which one to do
                 // Calc cost of staying in lane or switching left or right...
                 case (SelfDrivingCar::State::KeepLane):
@@ -1856,25 +1862,31 @@ int main() {
                 case (SelfDrivingCar::State::LaneChangeLeft):
                     
                     lane_change_in_progress_cnt += 1;
-                    if (lane_change_in_progress_cnt <= 250) {   // 3 seconds!! <TODO> 5 seconds right now
-                        av1.set_State(SelfDrivingCar::State::LaneChangeLeft); // Keep same status until complete
-                    } else {
+                    if (lane_change_in_progress_cnt <= 150) {   // 3 seconds!! <TODO> 5 seconds right now
+                        //av1.set_State(SelfDrivingCar::State::LaneChangeLeft); // Keep same status until complete
+                        av1.set_proposed_next_State(SelfDrivingCar::State::LaneChangeLeft);
+                    } else if (lane_change_in_progress_cnt == 150) {
                         lane_change_in_progress_cnt = 0;
                         av1.set_proposed_next_State(SelfDrivingCar::State::KeepLane);
-                        av1.update_lane(lane);
+                        av1.set_State(SelfDrivingCar::State::KeepLane);  //ADDDED!!!
+                        //av1.update_lane(lane); // Commented out
                     }
                     break;
                 
-                    
+                
+                // Current State = Lane Change to Right
                 case (SelfDrivingCar::State::LaneChangeRight):
                     
                     lane_change_in_progress_cnt += 1;
-                    if (lane_change_in_progress_cnt <= 250) {   // 3 seconds!!
-                        av1.set_State(SelfDrivingCar::State::LaneChangeRight); // Keep same status until complete
-                    } else {
+                    if (lane_change_in_progress_cnt < 150) {   // 3 seconds!!
+                        //av1.set_State(SelfDrivingCar::State::LaneChangeRight); // Keep same status until complete (MIGHT NEED TO BE FUTURE) - NOT NEEDED
+                        av1.set_proposed_next_State(SelfDrivingCar::State::LaneChangeRight);
+                       // State(SelfDrivingCar::State::LaneChangeRight); // Keep same status until complete (MIGHT NEED TO BE FUTURE) - NOT NEEDED
+                    } else if (lane_change_in_progress_cnt == 150) {
                         lane_change_in_progress_cnt = 0;
-                        av1.set_proposed_next_State(SelfDrivingCar::State::KeepLane);
-                        av1.update_lane(lane);
+                        av1.set_proposed_next_State(SelfDrivingCar::State::KeepLane);  // <TODO> Set to set current state
+                        av1.set_State(SelfDrivingCar::State::KeepLane);  //ADDDED!!!
+                        //av1.update_lane(lane); // Not needed
                     }
                     break;
             }; // switch
@@ -1891,6 +1903,7 @@ int main() {
             //double car_ahead_vel = 49.5;
             Tracked_Vehicle min_car_ahead = {};
             
+            // Piviot by new State!
             //switch(av1.get_State()) {
             SelfDrivingCar::State curr_state = av1.get_State();
             SelfDrivingCar::State next_state = av1.get_proposed_next_State(); // Change this naming to just "next_State"
@@ -1946,12 +1959,12 @@ int main() {
                     } else {
                         
                         // All other current state actions the same - max speed if clear, slow down & match if car ahead
-                        if (min_delta > 50.0) {   // meters
+                        if (min_delta > 40.0) {   // meters
                             
                             ref_vel += .4250; // (mph) .50     YUK last=.005 Put back to .4 but use low untl old code removed
-                            ref_vel = min(ref_vel, 49.8);  // Cap just under speed limit so dont violate
+                            ref_vel = min(ref_vel, 49.85);  // Cap just under speed limit so dont violate
                         
-                        } else if ((min_delta > 10.0) && (min_delta <= 50.0)) {
+                        } else if ((min_delta > 10.0) && (min_delta <= 40.0)) {
                             //ref_vel -= .10; // mph
                             get_min_ahead_cars(cars_ahead[lane], min_car_ahead);
                             //double car_ahead_vel = min_car_ahead.v; // Make getv getter!!
@@ -1985,12 +1998,28 @@ int main() {
                     }
                    */
                     
-                    break;
+                break;
                 
+                
+                // Next State = Lane Change to Left
+                case (SelfDrivingCar::State::LaneChangeLeft):
+                    // Note: Could upgrade with an abort lane change check here
+                    
+                    if (curr_state == SelfDrivingCar::State::KeepLane) {
+                        
+                        lane -= 1; // Change lane, same speed
+                        av1.update_lane(lane);
+                        av1.set_State(SelfDrivingCar::State::LaneChangeLeft); // <TODO> JUST ADDED
+                        cout << "Switched from KL to LCL" << endl;
+                    }
+                    cout << "Dont change lane or velocity for LCL until complete" << endl;
+                    break;
+   
+                    
                     
                 
                 
-                //
+                // Next State = Lane Change to Rigth
                 case (SelfDrivingCar::State::LaneChangeRight):
                     
                     // Note: Could upgrade with an abort lane change check here
@@ -1998,24 +2027,15 @@ int main() {
                     
                     if (curr_state == SelfDrivingCar::State::KeepLane) {
                         
-                        lane += 1; // Change lane, same speed
-                        av1.update_lane(lane);
+                        lane += 1; // When 1st triggered -  change "lane" @ same speed
+                        av1.update_lane(lane);  //<TODO> Possibly delay this??????
+                        av1.set_State(SelfDrivingCar::State::LaneChangeRight); // <TODO> JUST ADDED
+                        cout << "Switched from KL to LCR" << endl;
                     }
-                    
+                       cout << "Dont change lane or velocity for LCR until complete" << endl;
                 break;
                     
                     
-                case (SelfDrivingCar::State::LaneChangeLeft):
-                    // Note: Could upgrade with an abort lane change check here
-                    cout << "Dont change lane or velocity settings for LEFT LANE CHANGE until complete" << endl;
-                    
-                    if (curr_state == SelfDrivingCar::State::KeepLane) {
-                        
-                        lane -= 1; // Change lane, same speed
-                        av1.update_lane(lane);
-                    }
-
-                break;
                     
                     
                     
