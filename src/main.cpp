@@ -61,7 +61,7 @@ double deg2rad(double x) { return x * pi() / 180; }
 double rad2deg(double x) { return x * 180 / pi(); }
 double meters2miles(double x) { return x * 0.000621371; }
 double miles2meters(double x) { return x * 1609.3440; }
-double mps2mph(double x) { return x * 2.2369356; }
+double mps2mph(double x) { return x * 2.236936292; }
 //double mph2mps(double x) { return x * 1609.3440; }
 
 //
@@ -75,8 +75,9 @@ double mps2mph(double x) { return x * 2.2369356; }
 #define LARGE_NUM_DBL 1.0e47   // Machine independent large number used for min/max and testing
 
 #define HORIZON    100.0       // 200.0 300.0 (meters)  Horizon over which to track vehicles and sensor data
-#define TIME_AHEAD   2.0       // (seconds)  Projection ahead for rough trajectory
+#define TIME_AHEAD   1.25       // 1.5 1.0 2.0 (seconds)  Projection ahead for rough trajectory (less time means safer distance)
 #define TIME_LANE_CHANGE 3.0
+#define MAX_SPEED 49.865         // 49.88 was too high for speed variations
 
 //---
 // Main Helper Methods
@@ -653,12 +654,13 @@ class SelfDrivingCar{
 //
 // Important Constants for Self Driving Car
 //
-#define HIWAY_SPEED_LIMIT_MPH 49.45  // = 79.58 km/h or 22.xx m/s
+//#define HIWAY_SPEED_LIMIT_MPH 49.45  // = 79.58 km/h or 22.xx m/s
     
     
 public:
     //enum class State {EmergencyStop, KeepLane, LaneChangeLeft, LaneChangeRight, LaneChangeInProcess};
-    enum class State {EmergencyStop, KeepLane, LaneChangeLeft, LaneChangeRight};
+    //enum class State {EmergencyStop, KeepLane, LaneChangeLeft, LaneChangeRight};
+    enum class State {EmergencyStop, LaneChangeLeft, KeepLane, LaneChangeRight};
 
     
     
@@ -710,7 +712,7 @@ public:
         SAFETY_DISTANCE = 25.0;
        
         //SPEED_LIMIT_MPH = 49.5;
-        lane_speed = {HIWAY_SPEED_LIMIT_MPH, HIWAY_SPEED_LIMIT_MPH, HIWAY_SPEED_LIMIT_MPH};
+        //lane_speed = {HIWAY_SPEED_LIMIT_MPH, HIWAY_SPEED_LIMIT_MPH, HIWAY_SPEED_LIMIT_MPH};
         lane_frontcar_s = {numeric_limits<double>::max(), numeric_limits<double>::max(), numeric_limits<double>::max()};
         lane_backcar_s = {numeric_limits<double>::min(), numeric_limits<double>::min(), numeric_limits<double>::min()};
         //sdc_state = "KL";
@@ -720,7 +722,7 @@ public:
         sdc_endpath_s = 0.0; sdc_endpath_d = 0.0;
         
         cout << "SDC: Self Driving Car initialized w/ lane=" << sdc_lane << ", speed=" << target_vel << ", max speed=" << \
-                HIWAY_SPEED_LIMIT_MPH << endl;
+                MAX_SPEED << endl;
     }
     
     // Destructor
@@ -1156,7 +1158,7 @@ double cost_Lane_Movement_Collision(SelfDrivingCar &sdc, array<vector<Tracked_Ve
             get_min_ahead_cars(cars_ahead[proposed_lane], min_ahead_car);
             min_ahead_car.project_future_self(TIME_AHEAD, proposed_lane);
             double sdc_car_future_ahead_delta_s =  min_ahead_car.get_future_s() - sdc.get_future_s();
-            if (sdc_car_future_ahead_delta_s <= 40.0) {
+            if (sdc_car_future_ahead_delta_s <= 20.0) {
                 cout << "2. cost: lane m collision ahead=" << min_ahead_car.get_future_s() << "," << sdc.get_future_s() << "," <<sdc_car_future_ahead_delta_s << "," << 1.0 << endl;
                 return 1.0;
             }
@@ -1167,7 +1169,7 @@ double cost_Lane_Movement_Collision(SelfDrivingCar &sdc, array<vector<Tracked_Ve
             get_min_behind_cars(cars_behind[proposed_lane], min_behind_car); // Were cars behind updated with future s??
             min_behind_car.project_future_self(TIME_AHEAD, proposed_lane);
             double sdc_car_future_behind_delta_s = sdc.get_future_s() - min_behind_car.get_future_s();
-            if (sdc_car_future_behind_delta_s <= 20.0) {
+            if (sdc_car_future_behind_delta_s <= 15.0) {
                 cout << "2. cost: lane m collision behind=" << min_behind_car.get_future_s() << "," << sdc.get_future_s() << "," <<sdc_car_future_behind_delta_s << "," << 1.0 << endl;
                 return 1.0;
             }
@@ -1257,12 +1259,13 @@ double cost_For_Proposed_Trajectory(SelfDrivingCar &sdc, array<vector<Tracked_Ve
     
     
     // Calculate total cost. Coefficients are weights of each cost type
-    total_cost += 10000.0 * cost_Collision_Ahead(sdc, cars_ahead, proposed_lane);
+    total_cost +=  2000.0 * cost_Collision_Ahead(sdc, cars_ahead, proposed_lane);
     total_cost +=  1000.0 * cost_Lane_Movement_Collision(sdc, cars_ahead, cars_behind, proposed_lane);
-    total_cost +=   100.0 * cost_Closest_Vehicle_Ahead(sdc, cars_ahead, proposed_lane);
-    total_cost +=    50.0 * cost_Speed(sdc);
-    total_cost +=    10.0 * cost_Preferred_Lane(sdc, proposed_lane);
-    total_cost +=     5.0 * cost_Number_Of_Vehicles_In_Lane_Ahead(sdc, cars_ahead, proposed_lane);
+    total_cost +=   150.0 * cost_Closest_Vehicle_Ahead(sdc, cars_ahead, proposed_lane);     // Trying 150 like 1.5 cars 50 100
+    total_cost +=    30.0 * cost_Speed(sdc);                                                        // 30
+    total_cost +=    10.0 * cost_Number_Of_Vehicles_In_Lane_Ahead(sdc, cars_ahead, proposed_lane);  // 5
+    total_cost +=     5.0 * cost_Preferred_Lane(sdc, proposed_lane);                                // 10
+  
     
     cout << "Total cost for lane,cost=" << proposed_lane << "," << total_cost << endl;
     return total_cost;
@@ -1662,6 +1665,7 @@ int main() {
             }
             
             // Debug mins
+            cout << "SDC current lane,speed=" << lane << " , " << ref_vel << endl;
             cout << "Cars ahead:" << endl;
             for (int i=0; i<NUM_LANES; i++) {
                 cout << "L" << i << " # of cars=" << cars_ahead[i].size() << " min s=" << min_ahead_delta_s[i] << endl;
@@ -1852,7 +1856,7 @@ int main() {
                             }
                         }
                     }
-                    cout << "OK! best next state,cost=" << (int)best_next_state << " " << min_cost << endl;
+                    cout << "OK! current,best next,cost=" << (int)av1.get_State() << " , " << (int)best_next_state << " , " << min_cost << endl;
                     av1.set_proposed_next_State(best_next_state);
                 
                 break;
@@ -1865,11 +1869,11 @@ int main() {
                     if (lane_change_in_progress_cnt <= 150) {   // 3 seconds!! <TODO> 5 seconds right now
                         //av1.set_State(SelfDrivingCar::State::LaneChangeLeft); // Keep same status until complete
                         av1.set_proposed_next_State(SelfDrivingCar::State::LaneChangeLeft);
-                    } else if (lane_change_in_progress_cnt == 150) {
+                    } else if (lane_change_in_progress_cnt >= 150) {
                         lane_change_in_progress_cnt = 0;
                         av1.set_proposed_next_State(SelfDrivingCar::State::KeepLane);
                         av1.set_State(SelfDrivingCar::State::KeepLane);  //ADDDED!!!
-                        //av1.update_lane(lane); // Commented out
+                        av1.update_lane(lane); // Commented out
                     }
                     break;
                 
@@ -1882,11 +1886,11 @@ int main() {
                         //av1.set_State(SelfDrivingCar::State::LaneChangeRight); // Keep same status until complete (MIGHT NEED TO BE FUTURE) - NOT NEEDED
                         av1.set_proposed_next_State(SelfDrivingCar::State::LaneChangeRight);
                        // State(SelfDrivingCar::State::LaneChangeRight); // Keep same status until complete (MIGHT NEED TO BE FUTURE) - NOT NEEDED
-                    } else if (lane_change_in_progress_cnt == 150) {
+                    } else if (lane_change_in_progress_cnt >= 150) {
                         lane_change_in_progress_cnt = 0;
                         av1.set_proposed_next_State(SelfDrivingCar::State::KeepLane);  // <TODO> Set to set current state
                         av1.set_State(SelfDrivingCar::State::KeepLane);  //ADDDED!!!
-                        //av1.update_lane(lane); // Not needed
+                        av1.update_lane(lane); // Not needed
                     }
                     break;
             }; // switch
@@ -1910,6 +1914,8 @@ int main() {
             switch(next_state) {
                     
                 // Emergency (until ahead_vehicle clears enough). Lane same,
+               
+                
                 case (SelfDrivingCar::State::EmergencyStop):
                     
                       if (curr_state == SelfDrivingCar::State::KeepLane) {
@@ -1955,25 +1961,29 @@ int main() {
                     if (curr_state == SelfDrivingCar::State::EmergencyStop) {
                         
                         ref_vel = 0.5;  // 1.0 (mph) Give small speed to slowly come out of ES in same lane
-                        
+                    
+                    // All other current states
                     } else {
                         
                         // All other current state actions the same - max speed if clear, slow down & match if car ahead
                         if (min_delta > 40.0) {   // meters
                             
-                            ref_vel += .4250; // (mph) .50     YUK last=.005 Put back to .4 but use low untl old code removed
-                            ref_vel = min(ref_vel, 49.85);  // Cap just under speed limit so dont violate
+                            ref_vel += .425; // (mph) .50     YUK last=.005 Put back to .4 but use low untl old code removed
+                            ref_vel = min(ref_vel, MAX_SPEED);  // Cap just under speed limit so dont violate
                         
-                        } else if ((min_delta > 10.0) && (min_delta <= 40.0)) {
+                        } else if ((min_delta > 15.0) && (min_delta <= 40.0)) {
                             //ref_vel -= .10; // mph
                             get_min_ahead_cars(cars_ahead[lane], min_car_ahead);
                             //double car_ahead_vel = min_car_ahead.v; // Make getv getter!!
-                            double delta_v = (min_car_ahead.v)*2.2369356 - av1.get_car_speed();
-                            cout << "##ADJUST SPEED to car ahead(mph)=" << (min_car_ahead.v*2.2369356) << "," \
-                            << av1.get_car_speed() << "," << delta_v << "," << ref_vel << endl;;
-                            ref_vel += .01*delta_v;  // close delta speed in 2 second (1.0/(2*50))  1=100%
+                            double delta_speed_mph = min_car_ahead.v*2.236936292 - av1.get_car_speed();
+                            cout << "##ADJUST SPEED to car ahead(mph)=" << (min_car_ahead.v*2.236936292) << "," \
+                            << av1.get_car_speed() << "," << delta_speed_mph << "," << ref_vel << endl;;
+                            ref_vel += .0175*delta_speed_mph;  // close delta speed in 1 second (1.0/(1.0*50))  1=100%, 1.0=1 second
                             //max(ref_vel, car_ahead_vel);
-                            // THIS IS WHERE I NEED minCar velocity!!!!!
+                        
+                        // Back-off
+                        } else if ((min_delta > 2.5) && (min_delta <= 15.0)) {
+                            ref_vel -= .002*ref_vel; //  5.0mph/sec
                         }
                     }
                     
@@ -2007,19 +2017,22 @@ int main() {
                     
                     if (curr_state == SelfDrivingCar::State::KeepLane) {
                         
-                        lane -= 1; // Change lane, same speed
-                        av1.update_lane(lane);
+                        lane -= 1; // Change lane
+                        ref_vel += .001*ref_vel;  // Try a small speed increase to help with lateral acceleration
+                        //av1.update_lane(lane);
                         av1.set_State(SelfDrivingCar::State::LaneChangeLeft); // <TODO> JUST ADDED
-                        cout << "Switched from KL to LCL" << endl;
+                        cout << "Switched from KL to LCL. New lane=" << lane <<  endl;
+                        break;
                     }
-                    cout << "Dont change lane or velocity for LCL until complete" << endl;
-                    break;
+                    
+                    cout << "Dont change 'lane' or 'ref_vel' for LCL until complete" << endl;
+                break;
    
                     
                     
                 
                 
-                // Next State = Lane Change to Rigth
+                // Next State = Lane Change to Right
                 case (SelfDrivingCar::State::LaneChangeRight):
                     
                     // Note: Could upgrade with an abort lane change check here
@@ -2028,11 +2041,13 @@ int main() {
                     if (curr_state == SelfDrivingCar::State::KeepLane) {
                         
                         lane += 1; // When 1st triggered -  change "lane" @ same speed
-                        av1.update_lane(lane);  //<TODO> Possibly delay this??????
+                        ref_vel += .001*ref_vel;  // Try a small speed increase to help with lateral acceleration
+                       // av1.update_lane(lane);  //<TODO> Possibly delay this??????
                         av1.set_State(SelfDrivingCar::State::LaneChangeRight); // <TODO> JUST ADDED
-                        cout << "Switched from KL to LCR" << endl;
+                        cout << "Switched from KL to LCR. New lane=" << lane << endl;
+                        break;
                     }
-                       cout << "Dont change lane or velocity for LCR until complete" << endl;
+                       cout << "Dont change 'lane' or 'ref_vel' for LCR until complete" << endl;
                 break;
                     
                     
@@ -2308,7 +2323,7 @@ int main() {
             
                 //double N = (target_dist/(.02*ref_vel/2.24)); // (NOTE: 2.24 is not precise enough!!) convert from mph to
                 // m/s This is where point spread is made & velocity!!!
-                double N = (target_dist/(.02*ref_vel/2.2352)); // (NOTE: 2.24 is not precise enough!!) convert from mph to m/s This is where point spread is made & velocity!!!
+                double N = (target_dist/(.02*ref_vel/2.236936292)); // (NOTE: 2.24 is not precise enough!!) convert from mph to m/s This is where point spread is made & velocity!!!
                 double x_point = x_add_on + (target_x/N);
                 double y_point = s(x_point);
                 
@@ -2416,8 +2431,7 @@ int main() {
     if (h.listen(port)) {
         cout << "Main: Path Planning message handler listening on port=" << port << "..." << endl;
     } else {
-        cout << "Main: Path Planning message handler failed listening on port=" << port << " Exiting." << endl;
-        cerr << "Main: Path Planning message handler failed listening on port=" << port << " Exiting." << endl;
+        cout << "Main: Path Planning message handler failed listening on port=" << port << " Exiting!" << endl;
     return -1;
     }
     
