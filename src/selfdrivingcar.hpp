@@ -5,14 +5,10 @@
 //  Created by Steve Horton on 8/31/17.
 //
 //
-
-
+#pragma once
 
 #ifndef selfdrivingcar_hpp
 #define selfdrivingcar_hpp
-
-//#ifndef selfdrivingcar_H
-//#define selfdrivingcar_H
 
 
 #include <stdio.h>
@@ -24,8 +20,8 @@
 
 // My libraries
 //#include "selfdrivingcar.hpp"
-#include "map.hpp"
-#include "utils.hpp"
+//#include "map.hpp"
+//#include "utils.hpp"
 
 
 using namespace std;

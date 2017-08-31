@@ -8,18 +8,26 @@
 #include <cmath>  // abs for double!
 #include <vector>
 
-#include "map.hpp"
+//#include "utils.hpp"
+//#include "map.hpp"
 
 using namespace std;
 
+/*
 constexpr double pi() { return M_PI; }
-//double deg2rad(double x) { return x * pi() / 180; }
-//double rad2deg(double x) { return x * 180 / pi(); }
+double deg2rad(double x) { return x * pi() / 180; }
+double rad2deg(double x) { return x * 180 / pi(); }
+*/
 
 
 //-----
 // Udacity Map Utility Methods
 //-----
+
+double distance(double x1, double y1, double x2, double y2) {
+    return sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+}
+
 
 // Get closest  Waypoint given x,y and Waypoint map data
 int ClosestWaypoint(double x, double y, vector<double> maps_x, vector<double> maps_y) {
@@ -54,7 +62,8 @@ int NextWaypoint(double x, double y, double theta, vector<double> maps_x, vector
     
     double angle = abs(theta-heading);
     
-    if(angle > pi()/4)
+    //if(angle > pi()/4)
+    if (angle > M_PI/4)
     {
         closestWaypoint++;
     }
@@ -127,7 +136,9 @@ vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> m
     double seg_x = maps_x[prev_wp]+seg_s*cos(heading);
     double seg_y = maps_y[prev_wp]+seg_s*sin(heading);
     
-    double perp_heading = heading-pi()/2;
+    //double perp_heading = heading-pi()/2;
+    double perp_heading = heading-M_PI/2;
+
     
     double x = seg_x + d*cos(perp_heading);
     double y = seg_y + d*sin(perp_heading);
@@ -136,6 +147,4 @@ vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> m
 }
 
 
-double distance(double x1, double y1, double x2, double y2) {
-    return sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
-}
+

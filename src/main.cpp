@@ -52,33 +52,40 @@
 #include "json.hpp"
 #include <uWS/uWS.h> // Websockets
 #include "spline.h"  // Copyright (C) 2011, 2014 Tino Kluge (ttk448@gmail.com)
-#include <algorithm> // Needed for sort
+//#include <algorithm> // Needed for sort
 
 
 // My support libraries
-
 #include "selfdrivingcar.hpp"
-//#include "costfunctions.hpp"  // Self Driving Car cost function for FSM
 #include "map.hpp"
-#include "utils.hpp"          // My utility library
+//#include "costfunctions.hpp"  // Self Driving Car cost function for FSM
+
+//#include "utils.hpp"          // My utility library
 
 
 // For convenience
 using json = nlohmann::json;
-//using State = SelfDrivingCar::State;
 using namespace std;
 
 
 // In-line functions for converting back and forth between radians and degrees.
+
+
+
 constexpr double pi() { return M_PI; }
-double deg2rad(double x) { return x * pi() / 180; }
-double rad2deg(double x) { return x * 180 / pi(); }
+//constexpr double deg2rad() { return (M_PI/180.0) ; }
+constexpr double deg2rad()  { return (0.017453293) ; }
+constexpr double mps2mph() { return (2.236936292) ; }
 
-double meters2miles(double x) { return x * 0.000621371; }
-double miles2meters(double x) { return x * 1609.3440; }
-double mps2mph(double x) { return x * 2.236936292; }
 
-double mph2mps(double x) { return(x * 0.447040); }  // Exact conversion mph to m/s
+//double deg2rad(double x) { return x * pi() / 180; }
+//double rad2deg(double x) { return x * 180 / pi(); }
+
+//double mps2mph(double x) { return x * 2.236936292; }
+//double meters2miles(double x) { return x * 0.000621371; }
+//double miles2meters(double x) { return x * 1609.3440; }
+
+//double mph2mps(double x) { return(x * 0.447040); }  // Exact conversion mph to m/s
 
 
 
@@ -322,7 +329,7 @@ public:
         
         this->v = std::sqrt(vx*vx + vy*vy); // m/s!
         //this->speed_mph = v*2.236936292;
-        this->speed_mph = mps2mph(v);
+        this->speed_mph = mps2mph()*v;
     }
     
      // Alternate Constructor #2 w/ Sensor Fusion data
@@ -338,7 +345,7 @@ public:
      
      v = std::sqrt(vx*vx + vy*vy);
      //speed_mph = v*2.236936292;
-     speed_mph = mps2mph(v);
+     speed_mph = mps2mph()*v;
      }
     
     // Trivial destructor
@@ -1462,6 +1469,7 @@ int main() {
     int lane = 1;                         // Current lane value for trajectory generator (0=Far Left, 1=Center, 2=Far Right)
     double ref_vel = 0.0;                 // Current self driving car speed (m/s!) (starts in Simulator at 0)
     
+    
     uWS::Hub h;         // Create Websocket message object
     SelfDrivingCar av1; // Create Self Driving Car (sdc) object
     
@@ -1693,7 +1701,7 @@ int main() {
             vector<SelfDrivingCar::State>  feasible_states = {};
             SelfDrivingCar::State best_next_state = {};
             double cost;
-            
+    
             // row = state  , col=lane
             double projected_costs[4][3] = {
                                            {__DBL_MAX__,__DBL_MAX__,__DBL_MAX__},
@@ -1773,7 +1781,6 @@ int main() {
                         cout << it->get_future_s() << ",";
                     }
                     cout << endl;
-                    
                     
                     
                     
@@ -1901,6 +1908,8 @@ int main() {
             } else {
                 next_state = av1.get_next_State(); // Change this naming to just "next_State"
             }
+            
+            cout << "Curr+Next States =" << (int)curr_state << "  " << (int)next_state << endl;
             
             // Piviot by "next" State
             switch(next_state) {
@@ -2051,13 +2060,13 @@ int main() {
             
             double ref_x = car_x;
             double ref_y = car_y;
-            double ref_yaw = deg2rad(car_yaw); // Need to convert to radians from degrees
+            double ref_yaw = deg2rad()*car_yaw; // Need to convert to radians from degrees
             
             // 1st 2 anchor points are one point behind car and one point is car (makes transition smooth)
             if (prev_path_size < 2) {
             
                 // Path tangent to current angle of the car
-                double ref_yaw = deg2rad(car_yaw); // Need to convert degrees to radians
+                double ref_yaw = deg2rad()*car_yaw; // Need to convert degrees to radians
                 double prev_car_x = car_x - cos(ref_yaw);
                 double prev_car_y = car_y - sin(ref_yaw);
                 

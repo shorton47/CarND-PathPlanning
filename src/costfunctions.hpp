@@ -10,7 +10,7 @@
 #define costfunctions_hpp
 
 #include <stdio.h>
-#include "main.cpp"
+//#include "main.cpp"
 
 #endif /* costfunctions_hpp */
 

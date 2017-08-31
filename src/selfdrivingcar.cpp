@@ -38,15 +38,38 @@
 #include "spline.h"  // Copyright (C) 2011, 2014 Tino Kluge (ttk448@gmail.com)
 
 // My libraries
-//#include "selfdrivingcar.hpp"
+#include "selfdrivingcar.hpp"
 #include "map.hpp"
-#include "utils.hpp"
-
+//#include "utils.hpp"
 
 using namespace std;
 
 
-class SelfDrivingCar{
+constexpr double pi() { return M_PI; }
+constexpr double deg2rad()  { return (0.017453293) ; }
+//constexpr double deg2rad() { return (M_PI/180.0) ; }
+//constexpr double deg2rad() { return (M_PI/180.0) ; }
+constexpr double  mps2mph() { return (2.236936292) ; }
+
+/*
+constexpr double pi() { return M_PI; }
+
+extern double deg2rad(double x) { return x * pi() / 180; }
+//constexpr double rad2deg(double x) { return x * 180 / pi(); }
+
+//constexpr double meters2miles(double x) { return x * 0.000621371; }
+//constexpr double miles2meters(double x) { return x * 1609.3440; }
+//constexpr double mps2mph(double x) { return x * 2.236936292; }
+//extern double mph2mps(double x) { return(x * 0.447040); }  // Exact conversion mph to m/s
+extern double mph2mps(double x) { return(x * 0.447040); }  // Exact conversion mph to m/s
+*/
+
+/*
+double mph2mps(double x) { return(x * 0.447040); }  // Exact conversion mph to m/s
+*/
+
+/*
+ class SelfDrivingCar{
     
 #define FULL_SPEED_TRIGGER_POINT     30.0  // (meters)
 #define MAINTAIN_SPEED_TRIGGER_POINT 10.0  // (meters)
@@ -90,8 +113,11 @@ private:
     bool sdc_lane_change_in_process;
     
 public:
+ 
+ */
+ 
     // Default Constructor
-    SelfDrivingCar(){
+SelfDrivingCar::SelfDrivingCar() {
         
         sdc_x = 0.0; sdc_y = 0.0; sdc_s = 0.0; sdc_d = 0.0;
         sdc_yaw = 0.0; sdc_speed = 0.0;
@@ -114,7 +140,8 @@ public:
     }
     
     // Destructor
-    virtual ~SelfDrivingCar() {}
+//virtual SelfDriving::~SelfDrivingCar() {}
+SelfDrivingCar::~SelfDrivingCar() {}
     
     
     //---
@@ -122,7 +149,7 @@ public:
     //---
     
     // Feasible future States to switch to for a given lane from defined Finite State Machine (FSM)
-    vector<SelfDrivingCar::State> get_feasible_next_States() {
+vector<SelfDrivingCar::State> SelfDrivingCar::get_feasible_next_States() {
         
         vector<SelfDrivingCar::State> valid_states;
         
@@ -149,7 +176,7 @@ public:
     
     
     // Feasible future lanes to switch to for a given SDC State from defined Finite State Machine (FSM)
-    vector<int> get_feasible_next_Lanes(SelfDrivingCar::State &next_state) {
+vector<int> SelfDrivingCar::get_feasible_next_Lanes(SelfDrivingCar::State &next_state) {
         
         vector<int> valid_Lanes;
         
@@ -173,10 +200,11 @@ public:
     
     
     // Project self driving car into a future self to check future behaviors.  Rough trajectory - lane independent for now
-    void project_future_self(double elapsed_time) {
-        
-        //sdc_future_s = sdc_s +  (sdc_speed*elapsed_time)*.447038889;  // Convert speed in mph to delta s in meters
-        sdc_future_s = sdc_s +  mph2mps(sdc_speed*elapsed_time);  // Convert speed in mph to delta s in meters
+void SelfDrivingCar::project_future_self(double elapsed_time) {
+    
+    cout << "av1 pfs: time,speed" << elapsed_time << " " << sdc_speed << endl;
+        sdc_future_s = sdc_s +  (sdc_speed*elapsed_time)*.447038889;  // Convert speed in mph to delta s in meters
+        //sdc_future_s = sdc_s +  (sdc_speed*elapsed_time);  // Convert speed in mph to delta s in meters
         sdc_future_d = sdc_lane*LANE_WIDTH + 2;
         sdc_future_speed = sdc_speed;
     }
@@ -187,7 +215,7 @@ public:
     
     // 1A. Data
     // Update car w/ localization data returned from Simulator.  Could eliminate extra copy but done for readability.
-    void update_Localization_Data(double x, double y, double s, double d, double yaw, double speed, \
+void SelfDrivingCar::update_Localization_Data(double x, double y, double s, double d, double yaw, double speed, \
                                   double endpath_s, double endpath_d) {
         
         sdc_x = x;                  // car x (meters) in map
@@ -212,7 +240,7 @@ public:
     // This is a predicition because Trajectory update can always
     // Input: Car data & Car State data (previous path & sensor data)
     // Output: target lane (sdc_lane) and velocity (sdc_velocity). Availablity internally & by Get
-    void update_Behavior(const vector<double> &previous_path_x, const vector<double> &previous_path_y, \
+void SelfDrivingCar::update_Behavior(const vector<double> &previous_path_x, const vector<double> &previous_path_y, \
                          const vector<vector<double>> &sensor_fusion) {
         
         
@@ -243,7 +271,7 @@ public:
     // Anchor points 30,60,90 (change this to seconds ahead of a 50 mph car in meters
     //
     
-    void update_Trajectory(const vector<double> &previous_path_x, const vector<double> &previous_path_y, \
+void SelfDrivingCar::update_Trajectory(const vector<double> &previous_path_x, const vector<double> &previous_path_y, \
                            const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y, \
                            const vector<double> &map_waypoints_s, vector<double> &x_points, vector<double> &y_points) {
         
@@ -264,10 +292,10 @@ public:
         
         double ref_x = sdc_x;
         double ref_y = sdc_y; // car y (meters) in map
-        double ref_yaw = deg2rad(sdc_yaw); // car yaw (degrees)?? units but used later
+        double ref_yaw = deg2rad()*sdc_yaw; // car yaw (degrees)?? units but used later
         
         //cout << ref_x << " " << ref_y << " " << car_yaw << " " << ref_yaw << endl;
-        double car_yaw_r = deg2rad(sdc_yaw);
+        double car_yaw_r = deg2rad()*sdc_yaw;
         
         
         //
@@ -393,39 +421,39 @@ public:
     //---
     // Getters
     //---
-    double get_s() {
+double SelfDrivingCar::get_s() {
         return sdc_s;
     }
     
-    SelfDrivingCar::State get_State(){
+    SelfDrivingCar::State SelfDrivingCar::get_State(){
         return sdc_state;
     }
     
-    SelfDrivingCar::State get_next_State(){
+    SelfDrivingCar::State SelfDrivingCar::get_next_State(){
         return sdc_next_state;
     }
     
-    int get_lane(){
+    int SelfDrivingCar::get_lane(){
         return sdc_lane;
     }
     
-    double get_car_speed() {
+    double SelfDrivingCar::get_car_speed() {
         return sdc_speed;
     }
     
-    double get_future_s() {
+    double SelfDrivingCar::get_future_s() {
         return sdc_future_s;
     }
     
-    double get_future_lane() {
+    double SelfDrivingCar::get_future_lane() {
         return sdc_future_lane;
     }
     
-    double get_future_speed() {
+    double SelfDrivingCar::get_future_speed() {
         return sdc_future_speed;
     }
     
-    double get_future_d() {
+    double SelfDrivingCar::get_future_d() {
         return sdc_future_d;
     }
     
@@ -433,22 +461,22 @@ public:
     //---
     // Setters
     //---
-    void set_State(SelfDrivingCar::State state) {
+    void SelfDrivingCar::set_State(SelfDrivingCar::State state) {
         sdc_state = state;
         return;
     }
     
-    void set_lane(int updated_lane) {
+    void SelfDrivingCar::set_lane(int updated_lane) {
         sdc_lane = updated_lane;
         return;
     }
     
-    void set_next_State(SelfDrivingCar::State state) {
+    void SelfDrivingCar::set_next_State(SelfDrivingCar::State state) {
         sdc_next_state = state;
         return;
     }
     
-    void set_lane_change_in_process(bool lane_change_status) {
+    void SelfDrivingCar::set_lane_change_in_process(bool lane_change_status) {
         sdc_lane_change_in_process = lane_change_status;
         return;
     }
@@ -457,9 +485,9 @@ public:
     //---
     // Status
     //---
-    bool lane_change_in_process() {
+    bool SelfDrivingCar::lane_change_in_process() {
         return sdc_lane_change_in_process;
     }
     
     
-}; // SelfDrivingCar Class
+//}; // SelfDrivingCar Class
