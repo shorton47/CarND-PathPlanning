@@ -2,22 +2,15 @@
 //  map.cpp
 //  Path_Planning
 //
-//  Created by Steve Horton on 8/31/17.
+//  Created by Steve Horton on 8/30/17.
 //
 //
-#include <cmath>  // abs for double!
+#include <cmath>   // for abs of double!
 #include <vector>
 
 //#include "utils.hpp"
-//#include "map.hpp"
 
 using namespace std;
-
-/*
-constexpr double pi() { return M_PI; }
-double deg2rad(double x) { return x * pi() / 180; }
-double rad2deg(double x) { return x * 180 / pi(); }
-*/
 
 
 //-----

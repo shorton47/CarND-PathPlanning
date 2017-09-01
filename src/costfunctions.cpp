@@ -8,7 +8,7 @@
 
 //#include "costfunctions.hpp"
 
-//#include "main.cpp"  // Replace w/ class file when constructed
+
 
 //
 // More Helper Functions - Going into COST.H!!!
