@@ -1,5 +1,5 @@
-///------------------
-// Self Driving Car (SDC) Class
+//------------------
+// Self Driving Car (SDC) class (selfdrivingcar.cpp)
 //   This is the main data class for the Path_Planner program. This class enstantiates a self driving car object and
 //   encapsulates the data incoming from telemetry, it performs behavior and prediction functions based on a
 //   Finite State Machine (FSM) implementation and other various calculations.  SDC makes it's own decisions using FSM & cost
@@ -10,26 +10,21 @@
 //   rapid de-acceleration and recovery for being cut-off or unforseen behaviors
 //
 // Structure of selfdrivingcar.CPP:
-//    Init
-//    Constructors
-//    Helper Methods
-//    Telemetry Data, Behavior & Predicition methods (4 total)
-//    Getter/Setters
+//    1. Init
+//    2. Constructors
+//    3. Helper Methods
+//    4. Telemetry Data, Behavior & Predicition methods (4 total)
+//    5. Getter/Setters
 //
 // Key Data Struture:
 //    Array of lanes that contains vector of tracked vehicles for that lane per frame
 //
 // Note1: Traffic rules and sdc speed settings to Server are in MPH but tracked vehicles from sensor fusion are in
 //        meters/second. I have decided for readibility (maybe incorrectly) to do everything INTERNALLY in MPH.
-//        The function mps2mph does the conversions.
+//        The function mps2mph does the conversion.
+//
+// Created by Steve Horton on 8/30/17.
 //----------
-//
-//  selfdrivingcar.cpp
-//  Path_Planning
-//
-//  Created by Steve Horton on 8/31/17.
-//
-//
 #include <stdio.h>
 #include <iostream>
 #include <vector>
@@ -41,33 +36,21 @@
 #include "selfdrivingcar.hpp"
 #include "map.hpp"
 #include "constants.hpp"
-//#include "utils.hpp"
 
 using namespace std;
 
-
 constexpr double pi() { return M_PI; }
-constexpr double deg2rad()  { return (0.017453293) ; }
-//constexpr double deg2rad() { return (M_PI/180.0) ; }
-//constexpr double deg2rad() { return (M_PI/180.0) ; }
-constexpr double  mps2mph() { return (2.236936292) ; }
+constexpr double deg2rad() { return (0.017453293); }
+constexpr double rad2deg() { return (57.95777937); }
+constexpr double mps2mph() { return (2.236936292); }
+constexpr double mph2mps() { return (0.447040);    }  // This is exact conversion of mph to m/s
 
 /*
-constexpr double pi() { return M_PI; }
-
-extern double deg2rad(double x) { return x * pi() / 180; }
-//constexpr double rad2deg(double x) { return x * 180 / pi(); }
-
 //constexpr double meters2miles(double x) { return x * 0.000621371; }
 //constexpr double miles2meters(double x) { return x * 1609.3440; }
-//constexpr double mps2mph(double x) { return x * 2.236936292; }
-//extern double mph2mps(double x) { return(x * 0.447040); }  // Exact conversion mph to m/s
-extern double mph2mps(double x) { return(x * 0.447040); }  // Exact conversion mph to m/s
 */
 
-/*
-double mph2mps(double x) { return(x * 0.447040); }  // Exact conversion mph to m/s
-*/
+
 
 /*
  class SelfDrivingCar{
@@ -117,39 +100,38 @@ public:
  
  */
  
-    // Default Constructor
+// Default Constructor
 SelfDrivingCar::SelfDrivingCar() {
         
-        sdc_x = 0.0; sdc_y = 0.0; sdc_s = 0.0; sdc_d = 0.0;
-        sdc_yaw = 0.0; sdc_speed = 0.0;
-        sdc_endpath_s = 0.0; sdc_endpath_d = 0.0;
+    sdc_x = 0.0; sdc_y = 0.0; sdc_s = 0.0; sdc_d = 0.0;
+    sdc_yaw = 0.0; sdc_speed = 0.0;
+    sdc_endpath_s = 0.0; sdc_endpath_d = 0.0;
         
-        sdc_state      = SelfDrivingCar::State::KeepLane;
-        sdc_next_state = SelfDrivingCar::State::KeepLane;
+    sdc_state      = SelfDrivingCar::State::KeepLane;
+    sdc_next_state = SelfDrivingCar::State::KeepLane;
         
-        // Match Simulator initializes sdc in 2nd from the left lane at zero speed
-        sdc_lane    = 1;    // 2nd from left lane. Lane convention=[0,1,2]
-        sdc_ref_vel = 0.0;  // 1st velocity point (MPH)
+    // Match Simulator initializes sdc in 2nd from the left lane at zero speed
+    sdc_lane    = 1;    // 2nd from left lane. Lane convention=[0,1,2]
+    sdc_ref_vel = 0.0;  // 1st velocity point (MPH)
         
-        sdc_future_s = 0.0; sdc_future_speed = 0.0;
-        sdc_future_d =0.0; sdc_future_lane = 1;
+    sdc_future_s = 0.0; sdc_future_speed = 0.0;
+    sdc_future_d =0.0; sdc_future_lane = 1;
         
-        sdc_lane_change_in_process = false;
+    sdc_lane_change_in_process = false;
         
-        cout << "SDC : init w/ lane=" << sdc_lane << ", speed=" << sdc_speed << ", max speed="  << MAX_SPEED \
-        << " current State=" << State_Name[(int)sdc_state] << endl;
-    }
+    cout << "SDC : init w/ lane=" << sdc_lane << ", speed=" << sdc_speed << ", max speed="  << MAX_SPEED \
+         << " current State=" << State_Name[(int)sdc_state] << endl;
+}
     
-    // Destructor
-//virtual SelfDriving::~SelfDrivingCar() {}
+// Destructor
 SelfDrivingCar::~SelfDrivingCar() {}
     
     
-    //---
-    // Helper Methods
-    //---
+//---
+// Helper Methods
+//---
     
-    // Feasible future States to switch to for a given lane from defined Finite State Machine (FSM)
+// Feasible future States to switch to for a given lane from defined Finite State Machine (FSM)
 vector<SelfDrivingCar::State> SelfDrivingCar::get_feasible_next_States() {
         
         vector<SelfDrivingCar::State> valid_states;
@@ -173,10 +155,10 @@ vector<SelfDrivingCar::State> SelfDrivingCar::get_feasible_next_States() {
         }
         
         return valid_states;
-    }
+};
     
     
-    // Feasible future lanes to switch to for a given SDC State from defined Finite State Machine (FSM)
+// Feasible future lanes to switch to for a given SDC State from defined Finite State Machine (FSM)
 vector<int> SelfDrivingCar::get_feasible_next_Lanes(SelfDrivingCar::State &next_state) {
         
         vector<int> valid_Lanes;
@@ -197,10 +179,10 @@ vector<int> SelfDrivingCar::get_feasible_next_Lanes(SelfDrivingCar::State &next_
         }
         
         return valid_Lanes;
-    }
+};
     
     
-    // Project self driving car into a future self to check future behaviors.  Rough trajectory - lane independent for now
+// Project self driving car into a future self to check future behaviors.  Rough trajectory - lane independent for now
 void SelfDrivingCar::project_future_self(double elapsed_time) {
     
     cout << "av1 pfs: time,speed" << elapsed_time << " " << sdc_speed << endl;
@@ -208,27 +190,27 @@ void SelfDrivingCar::project_future_self(double elapsed_time) {
         //sdc_future_s = sdc_s +  (sdc_speed*elapsed_time);  // Convert speed in mph to delta s in meters
         sdc_future_d = sdc_lane*LANE_WIDTH + 2;
         sdc_future_speed = sdc_speed;
-    }
+};
+
+
+//---
+// Data, Behavior, Prediction & Trajectory Methods for Finite State Machine
+//---
     
-    //---
-    // Data, Behavior, Prediction & Trajectory Methods for Finite State Machine
-    //---
-    
-    // 1A. Data
-    // Update car w/ localization data returned from Simulator.  Could eliminate extra copy but done for readability.
+// 1A. Data - Update car w/ localization data returned from Simulator.  Could eliminate extra copy but done for readability.
 void SelfDrivingCar::update_Localization_Data(double x, double y, double s, double d, double yaw, double speed, \
-                                  double endpath_s, double endpath_d) {
+                                              double endpath_s, double endpath_d) {
         
         sdc_x = x;                  // car x (meters) in map
         sdc_y = y;                  // car y (meters) in map
         sdc_s = s;                  // car s (meters) in Frenet coord (along track)
         sdc_d = d;                  // car d (meters) in Frenet coord (displacement from center lane)
-        sdc_yaw = yaw;            // car angle (degrees) in map. Simulation begins with car at 0 degrees pointing straight ahead
+        sdc_yaw = yaw;             // car angle (degrees) in map. Simulation begins with car at 0 degrees pointing straight ahead
         sdc_speed=speed;            // car speed (MPH)
         sdc_endpath_s = endpath_s;  // last s point from prior path from Telemetry
         sdc_endpath_d = endpath_d;  // last d point from prior path from Telemetry
         
-    };
+};
     
     
     

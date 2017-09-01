@@ -89,7 +89,7 @@ constexpr double mps2mph() { return (2.236936292) ; }
 //double mph2mps(double x) { return(x * 0.447040); }  // Exact conversion mph to m/s
 
 
-
+/*
 //
 // Important Project LevelConstants: Simulator, Track, etc...
 //
@@ -103,10 +103,11 @@ constexpr double mps2mph() { return (2.236936292) ; }
 #define HORIZON    175.0       // 200.0 300.0 (meters)  Horizon over which to track vehicles and sensor data
 #define TIME_AHEAD   1.75       // 2.0 working 1.0 1.25 1.5 1.0 2.0 (seconds)  Projection ahead for rough trajectory (less time means safer distance)
 
-#define MAX_SPEED  49.8710       // !49.87 49.86 works 49.80 49.88 was too high, (49.875,49.8725,49.87120) too high for max accel speed variations
+//#define MAX_SPEED  49.8710       // !49.87 49.86 works 49.80 49.88 was too high, (49.875,49.8725,49.87120) too high for max accel speed variations
 
 #define DEBUG      true
-
+*/
+ 
 //---
 // Main Helper Methods (Udacity)
 //---
@@ -126,148 +127,29 @@ string hasData(string s) {
   return "";
 }
 
-/*
 
-double distance(double x1, double y1, double x2, double y2) {
-    return sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
-}
-
-
-//-----
-// Udacity Map Utility Methods
-//-----
-
-// Get closest  Waypoint given x,y and Waypoint map data
-int ClosestWaypoint(double x, double y, vector<double> maps_x, vector<double> maps_y) {
-
-	double closestLen = 100000; //large number
-	int closestWaypoint = 0;
-
-	for(int i = 0; i < maps_x.size(); i++)
-	{
-        double map_x = maps_x[i];
-		double map_y = maps_y[i];
-		double dist = distance(x,y,map_x,map_y);
-		if(dist < closestLen) {
-			closestLen = dist;
-			closestWaypoint = i;
-		}
-	}
-	
-    return closestWaypoint;
-}
-
-
-// Get next Waypoint given x,y,theta and Waypoint map data
-int NextWaypoint(double x, double y, double theta, vector<double> maps_x, vector<double> maps_y)
-{
-
-	int closestWaypoint = ClosestWaypoint(x,y,maps_x,maps_y);
-
-	double map_x = maps_x[closestWaypoint];
-	double map_y = maps_y[closestWaypoint];
-
-	double heading = atan2( (map_y-y),(map_x-x) );
-
-	double angle = abs(theta-heading);
-
-	if(angle > pi()/4)
-	{
-		closestWaypoint++;
-	}
-	return closestWaypoint;
-}
-
-
-// Transform from Cartesian x,y coordinates to Frenet s,d coordinates
-vector<double> getFrenet(double x, double y, double theta, vector<double> maps_x, vector<double> maps_y)
-{
-	int next_wp = NextWaypoint(x,y, theta, maps_x,maps_y);
-
-	int prev_wp;
-	prev_wp = next_wp-1;
-	if(next_wp == 0)
-	{
-		prev_wp  = maps_x.size()-1;
-	}
-
-	double n_x = maps_x[next_wp]-maps_x[prev_wp];
-	double n_y = maps_y[next_wp]-maps_y[prev_wp];
-	double x_x = x - maps_x[prev_wp];
-	double x_y = y - maps_y[prev_wp];
-
-	// find the projection of x onto n
-	double proj_norm = (x_x*n_x+x_y*n_y)/(n_x*n_x+n_y*n_y);
-	double proj_x = proj_norm*n_x;
-	double proj_y = proj_norm*n_y;
-
-	double frenet_d = distance(x_x,x_y,proj_x,proj_y);
-
-	//see if d value is positive or negative by comparing it to a center point
-	double center_x = 1000-maps_x[prev_wp];
-	double center_y = 2000-maps_y[prev_wp];
-	double centerToPos = distance(center_x,center_y,x_x,x_y);
-	double centerToRef = distance(center_x,center_y,proj_x,proj_y);
-
-    if(centerToPos <= centerToRef) {
-		frenet_d *= -1;
-	}
-
-	// calculate s value
-	double frenet_s = 0;
-	for(int i = 0; i < prev_wp; i++) {
-		frenet_s += distance(maps_x[i],maps_y[i],maps_x[i+1],maps_y[i+1]);
-	}
-
-	frenet_s += distance(0,0,proj_x,proj_y);
-
-	return {frenet_s,frenet_d};
-}
-
-
-// Transform from Frenet s,d coordinates to Cartesian x,y with map data
-vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> maps_x, vector<double> maps_y)
-{
-	int prev_wp = -1;
-
-	while(s > maps_s[prev_wp+1] && (prev_wp < (int)(maps_s.size()-1) )) {
-		prev_wp++;
-	}
-
-	int wp2 = (prev_wp+1)%maps_x.size();
-
-	double heading = atan2((maps_y[wp2]-maps_y[prev_wp]),(maps_x[wp2]-maps_x[prev_wp]));
-	
-    // the x,y,s along the segment
-	double seg_s = (s-maps_s[prev_wp]);
-
-	double seg_x = maps_x[prev_wp]+seg_s*cos(heading);
-	double seg_y = maps_y[prev_wp]+seg_s*sin(heading);
-
-	double perp_heading = heading-pi()/2;
-
-	double x = seg_x + d*cos(perp_heading);
-	double y = seg_y + d*sin(perp_heading);
-
-	return {x,y};
-}
-
- */
- 
  
 //--------------------
-// Tracked_Vehicle is a custom class to encapsulate all of the data for surrounding vehicles that are tracked by the
-// self driving car.
+// Tracked_Vehicle is a custom class that encapsulate all of the data for a surrounding vehicle that are tracked by the
+// self driving car and passed through telemetry via sensor_fusion. I thought it was a good idea to make this a standalone
+// data object instead of making the SelfDrivingCar class even bigger and more unwieldly
 //
+// The key data returned from sensor fusion for this class as per the documentation:
+//    A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map
+//    coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d position
+//    in frenet coordinates.
 //
+// Structure of trackedvehicle.CPP:
+//    Init
+//    Constructors
+//    Data Handling & Methods
+//    Getter/Setters
 //
-
-/* A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d pos
- */
-//--------------------
+//----------
 class Tracked_Vehicle {
 
-
+// Clean everything else then go private and experiment
+    
 //private:
 public:
 
@@ -281,41 +163,38 @@ public:
     double d;    // d position in Frenet (meters)
     
     // Calculated
-    double v;
-    double speed_mph;
+    double v;          // speed in m/s
+    double speed_mph;  // speed in mph
     
-    // Added from external
+    // External
     int lane;
     double delta_s;
     
-    // Future self for predicted behavior analysis
-    int future_lane = {};
-    double future_s = 0.0;
-    double future_d = {};
-    double future_v = 0.0;
+    // Future self for FSM Behavioral analysis
+    double future_s;
+    double future_d;
+    double future_v;
+    double future_speed_mph;
+    int future_lane;
     
 //public:
     
     // Default Constructor
     Tracked_Vehicle() {
-        id = 0.0;
-        x  = 0.0;
-        y  = 0.0;
-        vx = 0.0;
-        vy = 0.0;
-        s  = 0.0;
-        d  = 0.0;
+        id = 0.0; x  = 0.0; y = 0.0;
+        vx = 0.0; vy = 0.0;
+        s  = 0.0; d  = 0.0;
         
-        v = 0.0;
-        speed_mph = 0.0;
+        v = 0.0; speed_mph = 0.0;
         
-        delta_s = __DBL_MAX__;
         lane = 1;
-        
+        delta_s = __DBL_MAX__;  // Important default convention that no delta_s exists yet (cant use zero)
+      
+        future_s     = 0.0;
+        future_d     = 0.0;
+        future_v     = 0.0;
+        future_speed_mph = 0.0;
         future_lane = 1;
-        future_s = 0.0;
-        future_d = 0.0;
-        future_v = 0.0;
     }
    
     // Alternate Constructor w/ data elements
@@ -328,9 +207,8 @@ public:
         this->s  = s;
         this->d  = d;
         
-        this->v = std::sqrt(vx*vx + vy*vy); // m/s!
-        //this->speed_mph = v*2.236936292;
-        this->speed_mph = mps2mph()*v;
+        this->v = std::sqrt(vx*vx + vy*vy); // in m/s!
+        this->speed_mph = v*mps2mph();
     }
     
      // Alternate Constructor #2 w/ Sensor Fusion data
@@ -345,51 +223,18 @@ public:
      d  = one_car_sensor_fusion[6];  // d position in Frenet (meters)
      
      v = std::sqrt(vx*vx + vy*vy);
-     //speed_mph = v*2.236936292;
-     speed_mph = mps2mph()*v;
+     speed_mph = v*mps2mph();
      }
     
     // Trivial destructor
     ~Tracked_Vehicle() = default;
     
     
-    // Project self driving car into a future self to check future behaviors
-    void project_future_self(double elapsed_time, int next_lane) {
-        
-        
-        //double current_speed = sqrt(vx*vx + vy*vy);
-        
-        this->future_lane = next_lane;
-        //this->future_s    = s + (current_speed*elapsed_time)*.447038889;
-        this->future_s    = s + v*elapsed_time;
-        this->future_d    = future_lane*LANE_WIDTH + 2;
-        this->future_v = v;  // m/s
-        //cout << "tracked car: cur s,future s=" << s << "," << future_s << endl;
-        //cout << "tracked car: cur d,future d=" << d << "," << future_d << endl;
-    }
+    //---
+    // Data Handling & Methods
+    //---
     
-    
-    
-    
-    // Update car w/ localization data returned from Simulator.
-    // Note: this is extra copy. Could be eliminated for speed but done for readability.
-    void setData(double id, double x, double y, double vx, double vy, double s, double d) {
-        
-        this->id = id;
-        this->x = x;
-        this->y = y;
-        this->vx = vx;
-        this->vy = vy;
-        this->s = s;
-        this->d = d;
-        
-        this->v = std::sqrt(vx*vx + vy*vy);
-        this->speed_mph = v*2.236936292;
-    };
-    
-    
-    
-    // COPY data into object from telemetry.
+    // COPY telemetry data into object
     void add_sensor_fusion_data(vector<double> one_car_sensor_fusion, double delta_s) {
         
         this->id = one_car_sensor_fusion[0];  // Car unique ID
@@ -401,18 +246,54 @@ public:
         this->d  = one_car_sensor_fusion[6];  // d position in Frenet (meters)
         
         // Calculate
-        this->v = std::sqrt(vx*vx + vy*vy);   // m/s
-        this->speed_mph = v*2.236936292;
+        this->v = std::sqrt(vx*vx + vy*vy); // m/s
+        this->speed_mph = v*mps2mph();      // mph
         
         // Adding from external
         this->delta_s = delta_s;  // referenced to sdc_s for this frame
     }
 
     
+    // Project the tracked car into future to compare future behaviors
+    void project_future_self(double elapsed_time, int next_lane) {
+        
+        this->future_s = s + v*elapsed_time;
+        this->future_d = next_lane*LANE_WIDTH + 2;
+        this->future_v = v;  // m/s
+        this->future_speed_mph = speed_mph;
+        this->future_lane = next_lane;
+        //cout << "tracked car: cur s,future s=" << s << "," << future_s << endl;
+        //cout << "tracked car: cur d,future d=" << d << "," << future_d << " speed=" << future_speed_mph << endl;
+    }
     
     
+    // Overloaded "=" copy operator to copy object
+    bool operator=(const Tracked_Vehicle &car)
+    {
+        this->id = car.id;
+        this->x  = car.x;
+        this->y  = car.y;
+        this->vx = car.vx;
+        this->vy = car.vy;
+        this->s =  car.s;
+        this->d =  car.d;
+        
+        this->v = std::sqrt(car.vx*car.vx + car.vy*car.vy);
+        this->speed_mph = car.v*mps2mph();
+        
+        this->delta_s = car.delta_s;  // referenced to sdc_s for this frame
+        
+        this->future_s = car.future_s;
+        this->future_d = car.future_d;
+        this->future_lane = car.future_lane;
+        this->future_v = car.future_v;
+        this->future_speed_mph = car.future_speed_mph;
+        
+        return (true);
+    }
     
     
+    /*
     // Update car w/ localization data returned from Simulator.
     // Note: this is extra copy. Could be eliminated for speed but done for readability.
     void getData(Tracked_Vehicle tracked_vehicle) {
@@ -429,61 +310,32 @@ public:
         speed_mph = v*2.236936292;
         
     };
-
-    
- 
-    
-    
-    
-    //bool operator < (Tracked_Vehicle &rhs) {return s < rhs.s;}  // Overloaded < operator for object comparison
-
-    //bool SortByAscendingS(Tracked_Vehicle const &lhs, Tracked_Vehicle const &rhs) {return lhs.s < rhs.s;}
-    
-    /*
-    bool operator<(const Tracked_Vehicle &b)
-    {
-        return (s < b.s);
-    }
-    */
-
-    // Overloaded "=" copy operator to copy object
-    bool operator=(const Tracked_Vehicle &car)
-    {
-        this->id = car.id;
-        this->x  = car.x;
-        this->y  = car.y;
-        this->vx = car.vx;
-        this->vy = car.vy;
-        this->s =  car.s;
-        this->d =  car.d;
-        
-        this->v = std::sqrt(car.vx*car.vx + car.vy*car.vy);
-        this->speed_mph = car.v*2.236936292;
-        
-        //<TODO> Need to add external & future
-        //cout << "overload copy called! s=" << a.s << " " << s << endl;
-        
-        return (true);
-    }
-
-    // Overload to copy Tracked_Vehicle object
-/*
-public: Tracked_Vehicle& operator=(const Tracked_Vehicle& rhs) {};
 */
-    
-    
-    
+  
     /*
-    double predict(double t){
-        // assuming s", d' and d" = 0
-        return s + v*t;
-    }
+    // Update car w/ localization data returned from Simulator.
+    // Note: this is extra copy. Could be eliminated for speed but done for readability.
+    void setData(double id, double x, double y, double vx, double vy, double s, double d) {
+        
+        this->id = id;
+        this->x = x;
+        this->y = y;
+        this->vx = vx;
+        this->vy = vy;
+        this->s = s;
+        this->d = d;
+        
+        this->v = std::sqrt(vx*vx + vy*vy);
+        this->speed_mph = v*2.236936292;
+    };
+    
     */
     
+
     //---
-    // Get Section
+    // Getter Section
     //---
-    double getID(){
+    double get_ID(){
         // assuming s", d' and d" = 0
         return id;
     }
@@ -508,109 +360,31 @@ public: Tracked_Vehicle& operator=(const Tracked_Vehicle& rhs) {};
         return speed_mph;
     }
     
-   
     
-    // Set delta_S if calculated relative to a sdc s position
-    void setDelta_S(double in_delta_s){
+    //---
+    // Getter Section
+    //---
+    // Set delta_s if calculated relative sdc's s position
+    void set_delta_s(double in_delta_s){
         this->delta_s = in_delta_s;
     }
     
     
 }; // Class Tracked_Vehicle
 
+
+
 //
-// Helper/Utility Functions
+// Main Helper/Utility Functions
 //
 
-/*
-struct SortByAscendingS
-{
-    bool operator() (const Tracked_Vehicle &lhs, const Tracked_Vehicle &rhs)
-    {
-        return (lhs.s < rhs.s);
-    }
-};
-*/
-
-/*
-// Note: need to pass the Object to get it's order changed
-struct SortByAscendingS
-{
-    bool operator() (const Tracked_Vehicle &lhs, const Tracked_Vehicle &rhs)
-    {
-        return (lhs.s < rhs.s);
-    }
-};
-
-
-
-struct SortByAscendingDeltaS
-{
-    bool operator() (const Tracked_Vehicle &lhs, const Tracked_Vehicle &rhs)
-    {
-        cout << "lhs,rhs=" << lhs.delta_s << " " << rhs.delta_s << endl;
-        return (lhs.delta_s < rhs.delta_s);
-    }
-};
-
-*/
 
 
 
 
-/*
-struct SortByAscendingDeltaS
-{
-    bool operator() (const Tracked_Vehicle &lhs, const Tracked_Vehicle &rhs)
-    {
-        cout << "lhs,rhs=" << lhs.delta_s << " " << rhs.delta_s << endl;
-        return (lhs.delta_s < rhs.delta_s);
-    }
-};
-*/
 
-/*
-struct SortByDescendingDeltaS
-{
-    bool operator() (const Tracked_Vehicle &lhs, const Tracked_Vehicle &rhs)
-    {
-        return (lhs.delta_s > rhs.delta_s);
-    }
-};
-*/
 
-/*
-double min_Delta_S(vector<Tracked_Vehicle> &tracked_cars) {
 
-    //double min_delta_s = LARGE_NUM_DBL; // Start w/ large #
-    double min_delta_s = __DBL_MAX__;  // Start w/ large #
-
-    if (tracked_cars.size() > 0) {
-        for (vector<Tracked_Vehicle>::iterator it = tracked_cars.begin(); it!=tracked_cars.end(); ++it) {
-            min_delta_s = min(min_delta_s, it->delta_s);  // Compare delta_s in Tracked_Vehicle object
-        }
-    }
-    
-    return min_delta_s;
-}
-*/
-
-/*
-double max_Delta_S(vector<Tracked_Vehicle> &tracked_cars) {
-    
-    //double max_delta_s = -LARGE_NUM_DBL; // Start w/ large negative #
-    double max_delta_s = -__DBL_MAX__; // Start w/ large negative #
-    
-    if (tracked_cars.size() > 0) {
-        for (vector<Tracked_Vehicle>::iterator it = tracked_cars.begin(); it!=tracked_cars.end(); ++it) {
-            //cout << "-" << max_delta_s << "," << it->delta_s << endl;
-            max_delta_s = max(max_delta_s, it->delta_s);  // Compare delta_s in Tracked_Vehicle object
-        }
-    }
-    
-    return max_delta_s;
-}
-*/
 // !!!!!
 // What happend if the vector of tracked cars is empty?
 // min_delta_s_tracked cars should come in empty and if there are non, should go out empty
@@ -621,7 +395,8 @@ void get_min_ahead_cars(vector<Tracked_Vehicle> &tracked_cars, Tracked_Vehicle &
     vector<Tracked_Vehicle>::iterator it_save;  // Save pointer to min object (de-activate)
     
     if (tracked_cars.empty()) {
-        min_delta_s_tracked_car.setDelta_S(__DBL_MAX__); // This is flag that no delta_s (maybr skip_
+       // min_delta_s_tracked_car.set_delta_s(__DBL_MAX__); // This is flag that no delta_s (maybr skip_
+        min_delta_s_tracked_car = {}; // <TODO> THIS IS DIFFERENT THAN COUNTER PART ABOVE
         //cout << "tracked cars AHEAD for this lane is empty!" << endl;
         return;
     }
@@ -644,6 +419,11 @@ void get_min_ahead_cars(vector<Tracked_Vehicle> &tracked_cars, Tracked_Vehicle &
             // Calculated
             min_delta_s_tracked_car.v = it->v;
             min_delta_s_tracked_car.delta_s = it->delta_s;
+            
+            // Speed
+            min_delta_s_tracked_car.speed_mph = it->speed_mph;
+            min_delta_s_tracked_car.future_speed_mph = it->future_speed_mph;
+            
         }
         //min_delta_s_tracked_car = (*it);
     } // for
@@ -685,6 +465,10 @@ void get_min_behind_cars(vector<Tracked_Vehicle> &tracked_cars, Tracked_Vehicle 
             // Calculated
             min_delta_s_tracked_car.v = it->v;
             min_delta_s_tracked_car.delta_s = it->delta_s;
+            
+            // Speed
+            min_delta_s_tracked_car.speed_mph = it->speed_mph;
+            min_delta_s_tracked_car.future_speed_mph = it->future_speed_mph;
         }
         
         //min_delta_s = min(min_delta_s, it->delta_s);  // Compare delta_s in Tracked_Vehicle object
@@ -1279,7 +1063,9 @@ double cost_Lane_Movement(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM
         // Check if not clear ahead
         if (cars_ahead[proposed_lane].size() > 0) {
             double future_ahead_delta_s = min_ahead_car.get_future_s() - sdc.get_future_s();
-            if (abs(future_ahead_delta_s) <= AHEAD_SEPERATION) {
+            double velocity_scale = min_behind_car.get_speed_mph()/sdc.get_car_speed();
+            double scaled_seperation = AHEAD_SEPERATION*velocity_scale;
+            if (abs(future_ahead_delta_s) <= scaled_seperation) {
                 cost += 1.0;
                 cout << "2. cost: lane m collision ahead=" << min_ahead_car.get_future_s() << "," << sdc.get_future_s() << "," \
                      << future_ahead_delta_s << "," << cost << endl;
@@ -1443,7 +1229,7 @@ double cost_For_Proposed_Trajectory(SelfDrivingCar &sdc, array<vector<Tracked_Ve
     cout << "lane " << proposed_lane << " min car ahead : now, future: " << min_ahead_car.get_s() << "  " \
                                                                          << min_ahead_car.get_future_s() << " " << endl;
     cout << "lane " << proposed_lane << " min car behind: now, future: " << min_behind_car.get_s() << "  " \
-                                                                         << min_ahead_car.get_future_s() << " " << endl;
+                                                                         << min_behind_car.get_future_s() << " " << endl;
     //cout << "min cars in future: " << min_ahead_car.get_future_s() << " " << min_behind_car.get_future_s() << endl;
     
     // Calculate total cost. Coefficients are weights of each cost type
@@ -1690,7 +1476,7 @@ int main() {
             //cout << "HELLO " << min_ahead_delta_s[lane] << "   " << min_ahead_cars[lane].get_delta_s() << endl;
               cout << "HELLO " << "   " << min_ahead_cars[lane].get_delta_s() << endl;
            // if (min_ahead_delta_s[lane] <= 10.0) {  // Why couldnt this be the min_car_ahead[lane].get_delta_s!!!
-                if  (min_ahead_cars[lane].get_delta_s() <= 10.0) {
+                if  (min_ahead_cars[lane].get_delta_s() <= 7.5) {
                // ref_vel -= .4; // Emergency 20 mph/1sec drop (at project limits)
                 av1.set_State(SelfDrivingCar::State::Emergency);
               //  cout << "Emergency Stop detected! Lane=" << lane << " min ahead detected=" << min_ahead_delta_s[lane] << endl;

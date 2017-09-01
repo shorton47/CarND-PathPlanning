@@ -1,11 +1,12 @@
-//
-//  selfdrivingcar.hpp
-//  Path_Planning
-//
-//  Created by Steve Horton on 8/31/17.
+//------------------
+// Self Driving Car (SDC) Header File (selfdrivingcar.hpp)
 //
 //
-#pragma once
+//  Created by Steve Horton on 8/30/17.
+//------------------
+//
+//
+//#pragma once
 
 #ifndef selfdrivingcar_hpp
 #define selfdrivingcar_hpp
@@ -33,7 +34,7 @@ class SelfDrivingCar{
 #define MAINTAIN_SPEED_TRIGGER_POINT 10.0  // (meters)
     
 //#define MAX_SPEED  49.87125       // !49.87 49.86 works 49.80 49.88 was too high, (49.875,49.8725) too high for max accel speed variations
-#define LANE_WIDTH   4.0       // Width of each lane (meters)
+//#define LANE_WIDTH   4.0       // Width of each lane (meters)
     
     
     
