@@ -293,45 +293,6 @@ public:
     }
     
     
-    /*
-    // Update car w/ localization data returned from Simulator.
-    // Note: this is extra copy. Could be eliminated for speed but done for readability.
-    void getData(Tracked_Vehicle tracked_vehicle) {
-        
-        id = tracked_vehicle.id;
-        x  = tracked_vehicle.x;
-        y  = tracked_vehicle.y;
-        vx = tracked_vehicle.vx;
-        vy = tracked_vehicle.vy;
-        s  = tracked_vehicle.s;
-        d  = tracked_vehicle.d;
-        
-        v = std::sqrt(vx*vx + vy*vy);
-        speed_mph = v*2.236936292;
-        
-    };
-*/
-  
-    /*
-    // Update car w/ localization data returned from Simulator.
-    // Note: this is extra copy. Could be eliminated for speed but done for readability.
-    void setData(double id, double x, double y, double vx, double vy, double s, double d) {
-        
-        this->id = id;
-        this->x = x;
-        this->y = y;
-        this->vx = vx;
-        this->vy = vy;
-        this->s = s;
-        this->d = d;
-        
-        this->v = std::sqrt(vx*vx + vy*vy);
-        this->speed_mph = v*2.236936292;
-    };
-    
-    */
-    
-
     //---
     // Getter Section
     //---
