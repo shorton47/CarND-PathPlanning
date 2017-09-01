@@ -1,10 +1,18 @@
+//--------------------
+// costfunctions is a group of methods used with an FSM to create the behavior of the self driving car. Higher cost means to
+// discourage the behavior. I am currently using 7 cost functions:
 //
-//  costfunctions.cpp
-//  Path_Planning
+// 1. cost_Collision_Risk                   w=1000.0  If collision risk ahead or behind, dont do it!
+// 2. cost_Lane_Movement                    w=1000.0  Check clear gap for lane movement
+// 3. cost_Closest_Vehicle_Ahead            w=150.0   Discourage vehicles close by
+// 4. cost_Speed                            w=20.0    Discourage vehicles ahead by speed
+// 5. cost_Number_Of_Vehicles_In_Lane_Ahead w=10.0    Discourage being in lane with multiple vehicles
+// 6. cost_Preferred_Lane(proposed_lane)    w=5.0     Choose 2nd from left lane
+// 7. cost_Fast_Lane                        w=1.0     Break any ties with encourage to go left towards fast lane
 //
 //  Created by Steve Horton on 8/30/17.
-//
-//
+//----------
+
 #include <cmath>   // for abs of double!
 #include <array>
 #include <vector>
