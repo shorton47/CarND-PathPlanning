@@ -9,7 +9,7 @@
 #ifndef constants_hpp
 #define constants_hpp
 
-#include <stdio.h>
+//#include <stdio.h>
 
 
 //
@@ -21,18 +21,13 @@
 #define NUM_LANES    3         // Number of highway lanes. Fixed in this Simulator
 #define LANE_WIDTH   4.0       // Width of each lane (meters)
 
+#define HORIZON    175.0       // (meters) Horizon over which to track vehicles from sensor data (old: 200,300)
+#define TIME_AHEAD   2.0       // (seconds) Time projection ahead for rough trajectory (old: 1.0, 1,5, 1.75)
+#define MAX_SPEED  49.80       // (mph) Max speed allowed (too high 49.86)
 
-#define HORIZON    175.0       // 200.0 300.0 (meters)  Horizon over which to track vehicles and sensor data
-#define TIME_AHEAD   2.0       // 1.75 2.0 working 1.0 1.25 1.5 1.0 2.0 (seconds)  Projection ahead for rough trajectory (less time means safer distance)
+#define SAFETY_DISTANCE 5.0    // (meters) Safety distance to nearest car to invoke emergency manuvers
 
-#define MAX_SPEED  49.80       // !49.87 49.86 works 49.80 49.88 was too high, (49.875,49.8725,49.87120, 49.871, 49.87,49.86) too high for max accel speed variations
 
 #define DEBUG      true
-
-
-
-
-
-
 
 #endif /* constants_hpp */

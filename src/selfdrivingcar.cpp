@@ -45,59 +45,7 @@ constexpr double rad2deg() { return (57.95777937); }
 constexpr double mps2mph() { return (2.236936292); }
 constexpr double mph2mps() { return (0.447040);    }  // This is exact conversion of mph to m/s
 
-/*
-//constexpr double meters2miles(double x) { return x * 0.000621371; }
-//constexpr double miles2meters(double x) { return x * 1609.3440; }
-*/
 
-
-
-/*
- class SelfDrivingCar{
-    
-#define FULL_SPEED_TRIGGER_POINT     30.0  // (meters)
-#define MAINTAIN_SPEED_TRIGGER_POINT 10.0  // (meters)
-  
-#define MAX_SPEED  49.87125       // !49.87 49.86 works 49.80 49.88 was too high, (49.875,49.8725) too high for max accel speed variations
-#define LANE_WIDTH   4.0       // Width of each lane (meters)
-    
-
-public:
-    enum class State {Emergency, LaneChangeLeft, KeepLane, LaneChangeRight};
-    const char State_Name[4][20] = {"Emergency" , "LaneChangeLeft", "KeepLane", "LaneChangeRight"};
-    
-private:
-    // Canonical
-    double sdc_x;   // add units!!
-    double sdc_y;
-    double sdc_s;
-    double sdc_d;
-    double sdc_yaw;
-    double sdc_speed;
-    double sdc_endpath_s;
-    double sdc_endpath_d;
-    
-    // Determined
-    SelfDrivingCar::State sdc_state;
-    SelfDrivingCar::State sdc_next_state;
-    
-    // External control
-    int sdc_lane;
-    double sdc_ref_vel; // This is DIFFERENT than speed. This is velocity setting sent to the Simulator Server
-    
-    // Future self for FSM Behavior analysis
-    double sdc_future_s;
-    double sdc_future_speed;
-    double sdc_future_d;
-    int    sdc_future_lane;
-    
-    // SDC status
-    bool sdc_lane_change_in_process;
-    
-public:
- 
-*/
- 
 // Default Constructor
 SelfDrivingCar::SelfDrivingCar() {
         
@@ -209,10 +157,6 @@ void SelfDrivingCar::update_Localization_Data(double x, double y, double s, doub
         sdc_endpath_d = endpath_d;  // last d point from prior path from Telemetry
         
 };
-    
-    
-    
-    
     
     
     

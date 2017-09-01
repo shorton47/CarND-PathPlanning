@@ -54,10 +54,6 @@
 #include "pathplanningutils.hpp"
 #include "constants.hpp"
 
-//#include "costfunctions.hpp"  // Self Driving Car cost function for FSM
-//#include "utils.hpp"          // My utility library
-
-
 // For convenience
 using json = nlohmann::json;
 using namespace std;
@@ -157,9 +153,8 @@ int main() {
     h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel, \
                  &av1, &frame_cnt, &elapsed_time, &lane_change_in_progress_cnt] \
                  (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
-
-       // 4 signifies a websocket message, 2 signifies a websocket event
-    
+       
+    // 4 signifies a websocket message, 2 signifies a websocket event
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
       auto s = hasData(data);
       if (s != "") {
@@ -194,72 +189,44 @@ int main() {
           	auto sensor_fusion = j[1]["sensor_fusion"]; // Array of detected other cars from car's sensors
             
             //---
-            //
-            // Step #1: Update Car's Localization data
-            //
+            // Step #1A: Update Car's Localization data
+            //---
             av1.update_Localization_Data(car_x,car_y,car_s,car_d,car_yaw,car_speed,end_path_s,end_path_d);
-            //cout << "after Localization store" << endl;
-            
-
+          
             //
-            // Step #2. Update Car's Sensor Localization Data (i.e. other nearby cars called "sensor fusion")
-            // THIS WILL BECOME av1.update_TrackedCars
-            // create_TrackedCar..(sensor_fusion,cars_ahead,cars_behind,min_ahead
-            
-            // Experiment
-            //array<vector<TrackedCar>,NUM_LANES> cars = {};
-            //array<vector<TrackedCar>,NUM_LANES> cars_ahead3 = {};
-            //array<vector<TrackedCar>,NUM_LANES> cars_behind3 = {};
-           
+            // Step #1B. Update Car's Sensor Localization Data (i.e. other nearby cars called "sensor fusion")
+            // This will become av1.update_TrackedCars after I have more time for refactor
             array<vector<TrackedCar>,NUM_LANES> cars_ahead = {};
             array<vector<TrackedCar>,NUM_LANES> cars_behind = {};
-           
-            
-            //array<double,NUM_LANES> min_ahead_delta_s = {};
-            //array<double,NUM_LANES> min_behind_delta_s = {};
-
-            /*
-            vector<TrackedCar> l0_cars_ahead = {};
-            vector<TrackedCar> l0_cars_behind = {};
-            vector<TrackedCar> l1_cars_ahead = {};
-            vector<TrackedCar> l1_cars_behind = {};
-            vector<TrackedCar> l2_cars_ahead = {};
-            vector<TrackedCar> l2_cars_behind = {};
-            */
-             
             TrackedCar new_tracked_car = {};
-            
             
             for (int i=0; i<sensor_fusion.size(); i++) {
                 
                 float d = sensor_fusion[i][6];
                 float delta_s = (float)sensor_fusion[i][5] - car_s;
                 
+                // On road
                 if (d >= 0.0 && d <= 12.0) {
                     
-                    // Put tracked cat here!!!!!
-                    
-                    
-                    
+                    // Lane 0
                     if (d >= 0.0 && d < 4.0) {
-                        cout << "l0: id,d,sensor,sdc,delta_s=" << i     << " " << d << " " << (float)sensor_fusion[i][5] << " " \
-                                                            << car_s << " " << delta_s << endl;
-                        new_tracked_car.add_sensor_fusion_data(sensor_fusion[i], delta_s); // TODO Change to pass delta_s so one less call
-                        //tracked_car.setDelta_S(delta_s);
-                        
+                        cout << "l0: id,d,sensor,sdc,delta_s=" << i << " " << d << " " << (float)sensor_fusion[i][5] << " " \
+                                                               << car_s << " " << delta_s << endl;
+                        new_tracked_car.add_sensor_fusion_data(sensor_fusion[i], delta_s);
+                    
                         if ((delta_s >= 0.0) && (delta_s <= HORIZON)) {
                             cars_ahead[0].push_back(new_tracked_car);
                         } else if ((delta_s < 0.0) && (delta_s >= -HORIZON)) {
                             cars_behind[0].push_back(new_tracked_car);
                         }
                         
+                    // Lane 1
                     } else if (d >= 4.0 && d < 8.0) {
                         
                         cout << "l1: id,d,sf,cars,delta_s=" << i     << " " << d << " " << (float)sensor_fusion[i][5] << " " \
                                                             << car_s << " " << delta_s << endl;
                         
                         new_tracked_car.add_sensor_fusion_data(sensor_fusion[i], delta_s);
-                        //tracked_car.setDelta_S(delta_s);
                         
                         if ((delta_s >= 0.0) && (delta_s <= HORIZON)) {
                             cars_ahead[1].push_back(new_tracked_car);
@@ -267,6 +234,7 @@ int main() {
                             cars_behind[1].push_back(new_tracked_car);
                         }
 
+                    // Lane 2
                     } else if (d >= 8.0 && d <= 12.0) {
 
                         cout << "l2: id,d,sf,cars,delta_s=" << i     << " " << d << " " << (float)sensor_fusion[i][5] << " " \
@@ -284,67 +252,51 @@ int main() {
                 }
             } // for
             
-            
-            // Next - DO AL 3 SIMULTANEOUSLY
             // Store tracked min car ahead & behind for each lane
-            // PROGRAM THIS
-            // Store min cars ahead for each lane
             array<TrackedCar,NUM_LANES> min_ahead_cars = {};
             array<TrackedCar,NUM_LANES> min_behind_cars = {};
             for (int i=0; i<NUM_LANES; i++) {
-                // <TODO> GET RID OF ONE OR THE OTHER
                 get_min_ahead_cars(cars_ahead[i],min_ahead_cars[i]);
                 get_min_behind_cars(cars_behind[i],min_behind_cars[i]);
-               // min_ahead_delta_s[i] = min_Delta_S(cars_ahead[i]);       // Switch to object
-               // min_behind_delta_s[i] = max_Delta_S(cars_behind[i]);     // Switch to object
             }
             
-            // Debug mins
+            // Debug
             cout << "Step #1 SDC data current lane=" << lane << " speed=" << ref_vel << " mph" << endl;
             cout << "Cars ahead:" << endl;
             for (int i=0; i<NUM_LANES; i++) {
-               // cout << "L" << i << " # of cars=" << cars_ahead[i].size() << " min s=" << min_ahead_delta_s[i] <<  endl;
-               cout << "L" << i << " # of cars=" << cars_ahead[i].size() << " min s=" << min_ahead_cars[i].get_delta_s() <<  endl;
+               cout << "L" << i << " # of cars=" << cars_ahead[i].size() << " min s=" << min_ahead_cars[i].get_delta_s() << endl;
             }
             cout << "Cars behind:" << endl;
             for (int i=0; i<NUM_LANES; i++) {
-                //cout << "L" << i << " # of cars=" << cars_behind[i].size() << " min s=" << min_behind_delta_s[i] << endl;
                  cout << "L" << i << " # of cars=" << cars_behind[i].size() << " min s=" << min_behind_cars[i].get_delta_s() << endl;
             }
          
             
             //
-            // !! Safety Check (NOTE: NEED TO FIGURE OUT WHERE TO PUT SPEED BACK UP)
+            // New - Emergency Safety Check before Step #2
+            // <TODO> Need to work on speed back up after clear
             //
-            //cout << "HELLO " << min_ahead_delta_s[lane] << "   " << min_ahead_cars[lane].get_delta_s() << endl;
-              cout << "HELLO " << "   " << min_ahead_cars[lane].get_delta_s() << endl;
-           // if (min_ahead_delta_s[lane] <= 10.0) {  // Why couldnt this be the min_car_ahead[lane].get_delta_s!!!
-                if  (min_ahead_cars[lane].get_delta_s() <= 5.0) {
-               // ref_vel -= .4; // Emergency 20 mph/1sec drop (at project limits)
+            if  (min_ahead_cars[lane].get_delta_s() <= SAFETY_DISTANCE) {
                 av1.set_State(SelfDrivingCar::State::Emergency);
-              //  cout << "Emergency Stop detected! Lane=" << lane << " min ahead detected=" << min_ahead_delta_s[lane] << endl;
-              cout << "Emergency Stop detected! Lane=" << lane << " min ahead detected=" << min_ahead_cars[lane].get_delta_s() << endl;
+                cout << "SAFETY engaged! Lane=" << lane << " min ahead detected=" << min_ahead_cars[lane].get_delta_s() << endl;
             }
             
             
             //-----
-            // Step #2: Update car's behavior based on localization data & state
-            // This is to be called predict potnetial next states
+            // Step #2. - Behavior
             //
+            // This section generates POTENTIAL behaviors w/ associated cost functions as part of an FSM. The result output is
+            // next proposed state for predicition module
+            // Note: This will become av1.update_Behavior after I have more time for refactor
+            //---
             cout << "Step #2 - Behavior estimates:" << endl;
-            av1.update_Behavior(previous_path_x, previous_path_y, sensor_fusion);
-           
-
-            //------
-            // Section #2. - Prediction /  Proceess vehicle data
-            //------
-            // THIS SECTION IS SUPPOSE TO GENERATE POTENTIAL BEHAVIORS (TRAJECTORIES) WITH ASSOCIATED COST function and output next proposed state
-            // Document based on what input!!!!
+            //av1.update_Behavior(previous_path_x, previous_path_y, sensor_fusion);
+            
             vector<SelfDrivingCar::State>  feasible_states = {};
             SelfDrivingCar::State best_next_state = {};
             double cost;
     
-            // row = state  , col=lane
+            // Cost matrix by: row = state  , col=lane
             double projected_costs[4][3] = {
                                            {__DBL_MAX__,__DBL_MAX__,__DBL_MAX__},
                                            {__DBL_MAX__,__DBL_MAX__,__DBL_MAX__},
@@ -357,11 +309,10 @@ int main() {
             // Piviot on current self driving car State
             switch(av1.get_State()) {
                 
-                // Emergency State. Same new State until ahead_vehicle clears enough
+                // Current State = Emergency State.  Same new State until ahead_vehicle clears enough
                 case (SelfDrivingCar::State::Emergency):
                     
                     cout << "Prediction: Current State=" << (int)SelfDrivingCar::State::Emergency << endl;
-                    //if (min_ahead_delta_s[lane] < 10.0) {
                     if (min_ahead_cars[lane].get_delta_s() < 10.0) {
                         
                         // Fall through - Keep slowing down a
@@ -375,34 +326,29 @@ int main() {
                     }
                 break;
                     
+                    
                 // Current State = KeepLane.
-                // All the ACTION This is where FSM calculates cost of 3 options and decides which one to do
+                // This is where FSM calculates cost of 3 options and decides which one to do
                 // Calc cost of staying in lane or switching left or right...
                 case (SelfDrivingCar::State::KeepLane):
                     
-                    // 1. Project sdc out 3 seconds, project tracked cars out 3 seconds
+                    // 1. Project sdc out x seconds, project tracked cars out 3 seconds
                     // 2. Calc costs
                     // 3. Choose min cost state
-                                  //SelfDrivingCar::State next_state;
-
-                    // Step #1. Project av1 & tracked vehicles forward in time & add to their objects
-                    cout << "av1 s now=" << av1.get_s() << endl;
+                    
+                    // Step #1A. Project av1 forward in time & add to their objects
                     av1.project_future_self(TIME_AHEAD);
-                    cout << "av1 s future=" << av1.get_future_s() << endl;
-                    
-                    // THIS NEEDS TO BE REINTRODUCED!! (FOR ALL LANES AND ALL CARS)
-                    // Project all surrounding vehicles
-                    
-                    
-                    cout << "car ahead lane1: s now=";
-                    
-                    // Check before
+                
+                    // Step #1B. Project tracked vehicles forward in time & add to their objects
+                    // Debug check before
+                    cout << "car ahead lane1: s future=";
                     for (vector<TrackedCar>::iterator it=cars_ahead[1].begin(); it!=cars_ahead[1].end(); ++it) {
-                        it->project_future_self(TIME_AHEAD,lane);  // SHOULD BE ABLE TO TAKE OUT LANE PART
+                        it->project_future_self(TIME_AHEAD,lane);  // <TODO> SHOULD BE ABLE TO TAKE OUT LANE PART
                         cout << it->get_s() << ",";
                     }
                     cout << endl;
                     
+                    // Project all vehicles, all lanes
                     for (int lane=0; lane<=NUM_LANES-1; lane++) {
                         
                         // Detected cars ahead
@@ -416,7 +362,7 @@ int main() {
                         }
                     } // for
                     
-                    // Check after
+                    // Debug check after
                     cout << "car ahead lane1: s future=";
                     for (vector<TrackedCar>::iterator it=cars_ahead[1].begin(); it!=cars_ahead[1].end(); ++it) {
                         it->project_future_self(TIME_AHEAD,lane);  // SHOULD BE ABLE TO TAKE OUT LANE PART
@@ -425,34 +371,18 @@ int main() {
                     cout << endl;
                     
                     
-                    
                     // Step #2. Calculate forecasted cost
-                    
-                     
-                    /*
-                    feasible_states = get_valid_potential_next_States(lane); // lane is current lane of av1
-                    for (auto next_state : feasible_states) {
-                        vector<int> feasible_lanes = {};
-                        feasible_lanes = get_valid_potential_next_Lanes(next_state);
-                        cout << " Forecasted cost: " << (int)next_state << " " << " cost=" << 0.0 << endl;
-                    } // for
-                    */
-                    
-                    
-                    //feasible_states = av1.get_feasible_next_States(lane); // lane is current lane of av1
                     feasible_states = av1.get_feasible_next_States(); // For av1 current lane... lane is current lane of av1
                     for (auto next_state : feasible_states) {
                         vector<int> feasible_lanes = {};
                         feasible_lanes = av1.get_feasible_next_Lanes(next_state);
                         for (auto proposed_lane : feasible_lanes) {
-                            
-                            //int i = (int)next_state;
-                            //int j =( int)proposed_lane;
-                            projected_costs[(int)next_state][(int)proposed_lane] = cost_For_Proposed_Trajectory(av1, cars_ahead, cars_behind, proposed_lane);
-                            //cout << "Cost: state=" << i << " lane=" << j << " cost=" <<  projected_costs[i][j] << endl;
+                            projected_costs[(int)next_state][(int)proposed_lane] = \
+                                    cost_For_Proposed_Trajectory(av1, cars_ahead, cars_behind, proposed_lane);
                         } // for
                     } // for
                     
+                    // Debug
                     cout << "Projected Cost Matrix:" << endl;
                     for (int i=0; i<4; i++) {
                         for (int j=0; j<3; j++) {
@@ -464,12 +394,9 @@ int main() {
                     }
                     
                     // Step #3. Then, find min cost state and make it proposed_next_State
-                    
                     for (auto next_state : feasible_states) {
                         feasible_lanes = av1.get_feasible_next_Lanes(next_state);
                         for (auto proposed_lane : feasible_lanes) {
-                           // int i = (int)next_state;
-                           // int j = (int)proposed_lane;
                             cost = projected_costs[(int)next_state][(int)proposed_lane];
                             if (cost <= min_cost) {  // <TODO> ISSUE ON BREAKING TIE
                                 min_cost = cost;
@@ -477,14 +404,14 @@ int main() {
                             }
                         }
                     }
-                    cout << "OK! current,best next,cost=" << (int)av1.get_State() << " , " << (int)best_next_state << " , " << min_cost << endl;
+                    cout << "OK! current,best next,cost=" << (int)av1.get_State() << " , " << (int)best_next_state << " , " \
+                        << min_cost << endl;
                     
-                    // Override: If crash level costs stay put and slow down
-                    if (min_cost > 1000.0) best_next_state = SelfDrivingCar::State::KeepLane;
+                    // <TODO> Formalize this: if risk level costs are too high stay put
+                    if (min_cost > 2000.0) best_next_state = SelfDrivingCar::State::KeepLane;
                     
-                    
+                    // This is output
                     av1.set_next_State(best_next_state);
-                
                 break;
                 
                     
@@ -492,14 +419,13 @@ int main() {
                 case (SelfDrivingCar::State::LaneChangeLeft):
                     
                     lane_change_in_progress_cnt += 1;
-                    if (lane_change_in_progress_cnt <= (int)TIME_AHEAD*FPS) {   // ~2 seconds!! <TODO> 5 seconds right now
-                        //av1.set_State(SelfDrivingCar::State::LaneChangeLeft); // Keep same status until complete
+                    if (lane_change_in_progress_cnt <= (int)TIME_AHEAD*FPS) {   // ~2 <TODO> Formalize hold until complete
                         av1.set_next_State(SelfDrivingCar::State::LaneChangeLeft);
                     } else if (lane_change_in_progress_cnt >= (int)TIME_AHEAD*FPS) {
                         lane_change_in_progress_cnt = 0;
                         av1.set_next_State(SelfDrivingCar::State::KeepLane);
-                        av1.set_State(SelfDrivingCar::State::KeepLane);  //ADDDED!!!
-                        av1.set_lane(lane); // Commented out
+                        av1.set_State(SelfDrivingCar::State::KeepLane);
+                        av1.set_lane(lane);
                         av1.set_lane_change_in_process(false);
                     }
                     break;
@@ -509,47 +435,42 @@ int main() {
                 case (SelfDrivingCar::State::LaneChangeRight):
                     
                     lane_change_in_progress_cnt += 1;
-                    if (lane_change_in_progress_cnt < (int)TIME_AHEAD*FPS) {   // 3 seconds!!
-                        //av1.set_State(SelfDrivingCar::State::LaneChangeRight); // Keep same status until complete (MIGHT NEED TO BE FUTURE) - NOT NEEDED
+                    if (lane_change_in_progress_cnt < (int)TIME_AHEAD*FPS) {   // ~2 <TODO> Formalize hold until complete
                         av1.set_next_State(SelfDrivingCar::State::LaneChangeRight);
-                       // State(SelfDrivingCar::State::LaneChangeRight); // Keep same status until complete (MIGHT NEED TO BE FUTURE) - NOT NEEDED
                     } else if (lane_change_in_progress_cnt >= (int)TIME_AHEAD*FPS) {
                         lane_change_in_progress_cnt = 0;
-                        av1.set_next_State(SelfDrivingCar::State::KeepLane);  // <TODO> Set to set current state
-                        av1.set_State(SelfDrivingCar::State::KeepLane);  //ADDDED!!!
-                        av1.set_lane(lane); // Not needed
+                        av1.set_next_State(SelfDrivingCar::State::KeepLane);
+                        av1.set_State(SelfDrivingCar::State::KeepLane);
+                        av1.set_lane(lane);
                         av1.set_lane_change_in_process(false);
                     }
                     break;
+                    
             }; // switch
             
             
-            // <TODO> Start-up HACK FOR NOW
+            // Handle starting from zero. <TODO> Formalize this as constant
             double MAX_DELTA_SPEED_MPH;
             if (frame_cnt < 200) {
-                MAX_DELTA_SPEED_MPH = 0.44450;  // Maximum 10ms2 accleration limit in mph/.02 sec for startup (0.447872584)
                 av1.set_next_State(SelfDrivingCar::State::KeepLane);
+                MAX_DELTA_SPEED_MPH = 0.44450;  // Maximum 10ms2 accleration limit in mph/.02 sec for startup (0.447872584)
             } else {
                 MAX_DELTA_SPEED_MPH = 0.4441850;
             }
             
             
-            
             //----------
             // Step #3: Prediction Step
             //
-            // Predict/generate (lane & velocity) from "current State" & "next State" from finite state machine (FSM) Behavior
-            // module.
+            // Predict/generate (lane & velocity) from "current State" & "next State" from finite state machine (FSM)
+            // from last Behavior module.
             //----------
             cout << "Step #3 - Prediction (decide lane & velocity w/ current & next state:" << endl;
             
             TrackedCar min_car_ahead = {};
             SelfDrivingCar::State curr_state,next_state;  // SDC states
             
-            
-            //cout << "HELLO2 " << min_ahead_delta_s[lane] << "   " << min_ahead_cars[lane].get_delta_s() << endl;
-           // cout << "HELLO2 " << min_ahead_cars[lane].get_delta_s() << endl;
-           //double min_delta = min_ahead_delta_s[lane];   // Needs to be outside case statement
+    
             double min_delta = min_ahead_cars[lane].get_delta_s();   // Needs to be outside case statement
         
             // Get States
@@ -559,7 +480,6 @@ int main() {
             } else {
                 next_state = av1.get_next_State(); // Change this naming to just "next_State"
             }
-            
             cout << "Curr+Next States =" << (int)curr_state << "  " << (int)next_state << endl;
             
             // Piviot by "next" State
@@ -613,12 +533,9 @@ int main() {
                         } else if ((min_delta > 10.0) && (min_delta <= 32.5)) {
                             get_min_ahead_cars(cars_ahead[lane], min_car_ahead);
                             double delta_speed_mph = min_car_ahead.v*2.236936292 - av1.get_car_speed();
-                            //double delta_speed_mph = min_car_ahead.get_speed_mph() - av1.get_car_speed();
                             if (DEBUG) cout << "KL: ADJUST SPEED to car ahead(mph)=" << min_car_ahead.get_speed_mph() << "," \
                             << av1.get_car_speed() << "," << delta_speed_mph << "," << ref_vel << endl;;
-                            //ref_vel += .0175*delta_speed_mph;  // close delta speed in 1 second (1.0/(1.0*50))  1=100%, 1.0=1
-                            ref_vel += .02*delta_speed_mph;  // .015 .00875 ok close delta speed in 1 second (1.0/(1.0*50))  1=100%, 1.0=1 second
-                            //max(ref_vel, car_ahead_vel);
+                            ref_vel += .02*delta_speed_mph;  // .0175 .015 .00875 ok close delta speed in 1 second (1.0/(1.0*50))  1=100%, 1.0=1 second
                         
                         // Back-off if too close
                         } else if ((min_delta > 5.0) && (min_delta <= 10.0)) {
@@ -666,25 +583,17 @@ int main() {
             cout << "lane=" << lane << "  ref_vel=" << ref_vel << " path_size=" << previous_path_x.size() << endl;
 
             // Simulator returns previous car path at each timestep
-         
             //int detected_cars = sensor_fusion.size();
             //cout << " # of cars detected=" << detected_cars << " Previous car path points=" << prev_size << endl;
             //cout << "previous path points=" << prev_size << endl;
-            
-            
-            // 1st thing is to check if car in front (this might go in "prediction" or behavior section. Yes predicition section as predicting
+            // 1st thing is to check if car in front (this might go in "prediction" or behavior section. Yes predicition section
+            // as predicting
             // if going to run into car or need to brake
-            
             //
             // This seems to have both "predicition" and  "behavior" in it
             //
             //cout << "old logic..." << endl;
          
-            
-            
-            // ???????This is weird because we already hve car_s and this puts it at the end of last path
-           
-            
             int prev_path_size = previous_path_x.size();
             if (prev_path_size > 0) {
                 car_s = end_path_s; // This means out at the far end of the trajectory
@@ -728,12 +637,7 @@ int main() {
                 // P2
                 ptsx.push_back(car_x);
                 ptsy.push_back(car_y);
-                
-                
-                //cout << "prev<2 x=" << prev_car_x << " " << car_x << endl;
-                //cout << "prev<2 y=" << prev_car_y << " " << car_y << endl;
-                
-            
+        
             } else {
             
                 // Use 2 points that make path tangent to the previous path's end points
@@ -742,9 +646,8 @@ int main() {
                 double ref_x_prev = previous_path_x[prev_path_size-2];
                 double ref_y_prev = previous_path_y[prev_path_size-2];
                 // Where is translation????
-                ref_yaw = atan2(ref_y-ref_y_prev, ref_x-ref_x_prev); // ??? ref_yaw not BEING USED????? Being used later
+                ref_yaw = atan2(ref_y-ref_y_prev, ref_x-ref_x_prev); //  Being used later
                 
-               
                 // P1
                 ptsx.push_back(ref_x_prev);
                 ptsy.push_back(ref_y_prev);
@@ -809,9 +712,6 @@ int main() {
             tk::spline s;
             s.set_points(ptsx,ptsy);
             
-            
-            
-            
             //---
             // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
             vector<double> next_x_vals = {};
@@ -851,7 +751,6 @@ int main() {
                 
                 next_x_vals.push_back(x_point);
                 next_y_vals.push_back(y_point);
-            
             }
           
             
