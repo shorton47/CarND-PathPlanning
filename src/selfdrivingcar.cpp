@@ -61,9 +61,7 @@ constexpr double mph2mps() { return (0.447040);    }  // This is exact conversio
 #define MAX_SPEED  49.87125       // !49.87 49.86 works 49.80 49.88 was too high, (49.875,49.8725) too high for max accel speed variations
 #define LANE_WIDTH   4.0       // Width of each lane (meters)
     
-    
-    
-    
+
 public:
     enum class State {Emergency, LaneChangeLeft, KeepLane, LaneChangeRight};
     const char State_Name[4][20] = {"Emergency" , "LaneChangeLeft", "KeepLane", "LaneChangeRight"};
@@ -98,7 +96,7 @@ private:
     
 public:
  
- */
+*/
  
 // Default Constructor
 SelfDrivingCar::SelfDrivingCar() {

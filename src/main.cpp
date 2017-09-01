@@ -1,10 +1,13 @@
 //----------
+// This is the Main method for the Path-Planning Projet (main.cpp). This method is the overall framework controller that
+// communicates with the Udacity Simulator and Server through a WebSockets messaging protocol. This framework utilizes a
+// finite state machine (FSM) and behavior cost functions to decide how to manage self driving car (SDC) path control
+// (lane & velocity).
 //
-//
-// Features: FSM States that include KeepLane, LaneChangeLeft, LaneChageRight as well as I added an Emergency State for rapid
+// My FSM current States are: KeepLane, LaneChangeLeft, LaneChageRight as well as I added an Emergency State for rapid
 // de-accleration and recovery for being cut-off or unforseen behaviors
 //
-// Structure of Main.CPP:
+// Structure of main.CPP:
 //    Init
 //    In-line Functions
 //    Helper Methods - General & Geometry
@@ -13,50 +16,39 @@
 //        WebSocket Message Handler Functions including onMessage (which is key)
 //        Start Messaging handling
 //
-// Conventions:
-//   Lanes from center median
+// Main Data Structure Architecture:
+//    Self Driving Vehicle Class (selfdrivingcar.cpp) object
+//    Tracked Cars object (trackedcar.cpp) & array by lane of ahead and behind (ex. cars_ahead[lane], cars_behind[lane])
+//    Matrix of projected costs (projectedcosts[State][lane])
 //
-//
-// Note: Normally would split this up into several files for easier management. However for both the project submission and the
-// BOSCH challenge, request is for main.cpp only so all is in this file for now.
-//
-//
-// Self Driving Car makes it's own decisions and keeps it's data internal. I have provided a few override set functions that
-// would be used in an emergency situation like getting an SDC off the road, law enforcement, etc..
-//
-// Architecture:
-//    Self Driving Vehicle Class & Object
-//    Tracked Cars Object
-//    FSM to calculate costs of lane choice and car speed
-//
-// Key Data Struture:
-//    Array of lanes that contains vector of tracked vehicles for that lane per frame
-//
-//
-// Note1: Traffic rules and sdc speed settings to Server are in MPH but tracked vehicles from sensor fusion are in
+// Note1: See (constants.h) for important constants for this project
+// Note2: Self Driving Car makes it's own decisions and keeps it's data internal. I have provided a few override
+//        set functions that would be used in an emergency situation like getting an SDC off the road, law enforcement, etc..
+// Note3: Traffic rules and sdc speed settings to Server are in MPH but tracked vehicles from sensor fusion are in
 //        meters/second. I have decided for readibility (maybe incorrectly) to do everything INTERNALLY in MPH.
 //        The function mps2mph does the conversions.
 //
+// Created by Steve Horton on 8/15/17. (Derived from starter code supplied by Udacity SD Nanodegree program)
 //----------
 #include <fstream>
 #include <iostream>
 #include <math.h>
-
 #include <chrono>
 #include <thread>
 #include <vector>
 #include <string>
 #include <list>
+
+// 3rd party
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include <uWS/uWS.h> // Websockets
 #include "spline.h"  // Copyright (C) 2011, 2014 Tino Kluge (ttk448@gmail.com)
-//#include <algorithm> // Needed for sort
-
 
 // My support libraries
 #include "selfdrivingcar.hpp"
+#include "trackedcar.hpp"
 #include "map.hpp"
 #include "constants.hpp"
 //#include "costfunctions.hpp"  // Self Driving Car cost function for FSM
@@ -70,46 +62,19 @@ using namespace std;
 
 
 // In-line functions for converting back and forth between radians and degrees.
-
-
-
 constexpr double pi() { return M_PI; }
-//constexpr double deg2rad() { return (M_PI/180.0) ; }
-constexpr double deg2rad()  { return (0.017453293) ; }
+constexpr double deg2rad() { return (0.017453293) ; }
 constexpr double mps2mph() { return (2.236936292) ; }
-
-
 //double deg2rad(double x) { return x * pi() / 180; }
 //double rad2deg(double x) { return x * 180 / pi(); }
-
 //double mps2mph(double x) { return x * 2.236936292; }
 //double meters2miles(double x) { return x * 0.000621371; }
 //double miles2meters(double x) { return x * 1609.3440; }
-
 //double mph2mps(double x) { return(x * 0.447040); }  // Exact conversion mph to m/s
 
 
-/*
-//
-// Important Project LevelConstants: Simulator, Track, etc...
-//
-#define FULL_TRACK_S 6945.554  // One loop of Simulator track in s (meters) before wrapping around the track back to 0
-#define DT           0.02      // Delta time of Simulator telemetry. NOTE: Fixed for this project (real-world it usually isnt)
-#define FPS          50        // Associated frames/second of telemtry from Simulator
-#define NUM_LANES    3         // Number of highway lanes. Fixed in this Simulator
-#define LANE_WIDTH   4.0       // Width of each lane (meters)
-
-
-#define HORIZON    175.0       // 200.0 300.0 (meters)  Horizon over which to track vehicles and sensor data
-#define TIME_AHEAD   1.75       // 2.0 working 1.0 1.25 1.5 1.0 2.0 (seconds)  Projection ahead for rough trajectory (less time means safer distance)
-
-//#define MAX_SPEED  49.8710       // !49.87 49.86 works 49.80 49.88 was too high, (49.875,49.8725,49.87120) too high for max accel speed variations
-
-#define DEBUG      true
-*/
- 
 //---
-// Main Helper Methods (Udacity)
+// Main Helper Methods
 //---
 
 // Checks if the SocketIO event has JSON data. If there is data the JSON object in string format will be returned,
@@ -128,232 +93,11 @@ string hasData(string s) {
 }
 
 
- 
-//--------------------
-// Tracked_Vehicle is a custom class that encapsulate all of the data for a surrounding vehicle that are tracked by the
-// self driving car and passed through telemetry via sensor_fusion. I thought it was a good idea to make this a standalone
-// data object instead of making the SelfDrivingCar class even bigger and more unwieldly
-//
-// The key data returned from sensor fusion for this class as per the documentation:
-//    A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map
-//    coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d position
-//    in frenet coordinates.
-//
-// Structure of trackedvehicle.CPP:
-//    Init
-//    Constructors
-//    Data Handling & Methods
-//    Getter/Setters
-//
-//----------
-class Tracked_Vehicle {
-
-// Clean everything else then go private and experiment
-    
-//private:
-public:
-
-    // Canonical
-    double id;   // Car unique ID
-    double x;    // x position in map coord
-    double y;    // y position in map coord
-    double vx;   // x velocity in m/s
-    double vy;   // y velocity in m/s
-    double s;    // s position in Frenet (meters)
-    double d;    // d position in Frenet (meters)
-    
-    // Calculated
-    double v;          // speed in m/s
-    double speed_mph;  // speed in mph
-    
-    // External
-    int lane;
-    double delta_s;
-    
-    // Future self for FSM Behavioral analysis
-    double future_s;
-    double future_d;
-    double future_v;
-    double future_speed_mph;
-    int future_lane;
-    
-//public:
-    
-    // Default Constructor
-    Tracked_Vehicle() {
-        id = 0.0; x  = 0.0; y = 0.0;
-        vx = 0.0; vy = 0.0;
-        s  = 0.0; d  = 0.0;
-        
-        v = 0.0; speed_mph = 0.0;
-        
-        lane = 1;
-        delta_s = __DBL_MAX__;  // Important default convention that no delta_s exists yet (cant use zero)
-      
-        future_s     = 0.0;
-        future_d     = 0.0;
-        future_v     = 0.0;
-        future_speed_mph = 0.0;
-        future_lane = 1;
-    }
-   
-    // Alternate Constructor w/ data elements
-    Tracked_Vehicle(double id, double x, double y, double vx, double vy, double s, double d) {
-        this->id = id;
-        this->x  = x;
-        this->y  = y;
-        this->vx = vx;
-        this->vy = vy;
-        this->s  = s;
-        this->d  = d;
-        
-        this->v = std::sqrt(vx*vx + vy*vy); // in m/s!
-        this->speed_mph = v*mps2mph();
-    }
-    
-     // Alternate Constructor #2 w/ Sensor Fusion data
-     Tracked_Vehicle(vector<double> one_car_sensor_fusion) {
-     
-     id = one_car_sensor_fusion[0];  // Car unique ID
-     x  = one_car_sensor_fusion[1];  // x position in map coord
-     y  = one_car_sensor_fusion[2];  // y position in map coord
-     vx = one_car_sensor_fusion[3];  // x velocity in m/s
-     vy = one_car_sensor_fusion[4];  // y velocity in m/s
-     s  = one_car_sensor_fusion[5];  // s position in Frenet (meters)
-     d  = one_car_sensor_fusion[6];  // d position in Frenet (meters)
-     
-     v = std::sqrt(vx*vx + vy*vy);
-     speed_mph = v*mps2mph();
-     }
-    
-    // Trivial destructor
-    ~Tracked_Vehicle() = default;
-    
-    
-    //---
-    // Data Handling & Methods
-    //---
-    
-    // COPY telemetry data into object
-    void add_sensor_fusion_data(vector<double> one_car_sensor_fusion, double delta_s) {
-        
-        this->id = one_car_sensor_fusion[0];  // Car unique ID
-        this->x  = one_car_sensor_fusion[1];  // x position in map coord
-        this->y  = one_car_sensor_fusion[2];  // y position in map coord
-        this->vx = one_car_sensor_fusion[3];  // x velocity in m/s
-        this->vy = one_car_sensor_fusion[4];  // y velocity in m/s
-        this->s  = one_car_sensor_fusion[5];  // s position in Frenet (meters)
-        this->d  = one_car_sensor_fusion[6];  // d position in Frenet (meters)
-        
-        // Calculate
-        this->v = std::sqrt(vx*vx + vy*vy); // m/s
-        this->speed_mph = v*mps2mph();      // mph
-        
-        // Adding from external
-        this->delta_s = delta_s;  // referenced to sdc_s for this frame
-    }
-
-    
-    // Project the tracked car into future to compare future behaviors
-    void project_future_self(double elapsed_time, int next_lane) {
-        
-        this->future_s = s + v*elapsed_time;
-        this->future_d = next_lane*LANE_WIDTH + 2;
-        this->future_v = v;  // m/s
-        this->future_speed_mph = speed_mph;
-        this->future_lane = next_lane;
-        //cout << "tracked car: cur s,future s=" << s << "," << future_s << endl;
-        //cout << "tracked car: cur d,future d=" << d << "," << future_d << " speed=" << future_speed_mph << endl;
-    }
-    
-    
-    // Overloaded "=" copy operator to copy object
-    bool operator=(const Tracked_Vehicle &car)
-    {
-        this->id = car.id;
-        this->x  = car.x;
-        this->y  = car.y;
-        this->vx = car.vx;
-        this->vy = car.vy;
-        this->s =  car.s;
-        this->d =  car.d;
-        
-        this->v = std::sqrt(car.vx*car.vx + car.vy*car.vy);
-        this->speed_mph = car.v*mps2mph();
-        
-        this->delta_s = car.delta_s;  // referenced to sdc_s for this frame
-        
-        this->future_s = car.future_s;
-        this->future_d = car.future_d;
-        this->future_lane = car.future_lane;
-        this->future_v = car.future_v;
-        this->future_speed_mph = car.future_speed_mph;
-        
-        return (true);
-    }
-    
-    
-    //---
-    // Getter Section
-    //---
-    double get_ID(){
-        // assuming s", d' and d" = 0
-        return id;
-    }
-    
-    double get_s(){
-        // assuming s", d' and d" = 0
-        return s;
-    }
-    
-    double get_delta_s(){
-        // assuming s", d' and d" = 0
-        return delta_s;
-    }
-    
-    
-    double get_future_s() {
-        // assuming s", d' and d" = 0
-        return future_s;
-    }
-    
-    double get_speed_mph() {
-        return speed_mph;
-    }
-    
-    
-    //---
-    // Getter Section
-    //---
-    // Set delta_s if calculated relative sdc's s position
-    void set_delta_s(double in_delta_s){
-        this->delta_s = in_delta_s;
-    }
-    
-    
-}; // Class Tracked_Vehicle
-
-
-
-//
-// Main Helper/Utility Functions
-//
-
-
-
-
-
-
-
-
-// !!!!!
-// What happend if the vector of tracked cars is empty?
-// min_delta_s_tracked cars should come in empty and if there are non, should go out empty
-// tracked_cars has to be initialized to
-void get_min_ahead_cars(vector<Tracked_Vehicle> &tracked_cars, Tracked_Vehicle &min_delta_s_tracked_car) {
+// Finds & returns the closest car in a lane just ahead of sdc from vector of Tracked Cars using Frenet delta s
+void get_min_ahead_cars(vector<TrackedCar> &tracked_cars, TrackedCar &min_delta_s_tracked_car) {
     
     double min_delta_s = __DBL_MAX__;         // Start w/ large #
-    vector<Tracked_Vehicle>::iterator it_save;  // Save pointer to min object (de-activate)
+    vector<TrackedCar>::iterator it_save;  // Save pointer to min object (de-activate)
     
     if (tracked_cars.empty()) {
        // min_delta_s_tracked_car.set_delta_s(__DBL_MAX__); // This is flag that no delta_s (maybr skip_
@@ -363,10 +107,10 @@ void get_min_ahead_cars(vector<Tracked_Vehicle> &tracked_cars, Tracked_Vehicle &
     }
     
     
-    for (vector<Tracked_Vehicle>::iterator it = tracked_cars.begin(); it!=tracked_cars.end(); ++it) {
+    for (vector<TrackedCar>::iterator it = tracked_cars.begin(); it!=tracked_cars.end(); ++it) {
         
         if (it->delta_s <= min_delta_s) {
-            min_delta_s = it->delta_s;  // Compare delta_s in Tracked_Vehicle object to find min
+            min_delta_s = it->delta_s;  // Compare delta_s in TrackedCar object to find min
             it_save = it;               // Iterator of min object by delta_s
           
             min_delta_s_tracked_car.id = it->id;
@@ -392,12 +136,13 @@ void get_min_ahead_cars(vector<Tracked_Vehicle> &tracked_cars, Tracked_Vehicle &
     //cout << "min AHEAD  delta_s=" << min_delta_s << "," << min_delta_s_tracked_car.delta_s << endl;
 }
 
-// Find closest car from behind to sdc
-void get_min_behind_cars(vector<Tracked_Vehicle> &tracked_cars, Tracked_Vehicle &min_delta_s_tracked_car) {
+
+// Finds and returns the closest car in a lane just behind sdc from vector of Tracked Cars using Frenet delta s
+void get_min_behind_cars(vector<TrackedCar> &tracked_cars, TrackedCar &min_delta_s_tracked_car) {
     
     //double min_delta_s = __DBL_MAX__;         // Start w/ large #
     double min_delta_s = -__DBL_MAX__;         // Start w/ large #
-    vector<Tracked_Vehicle>::iterator it_save;  // Save pointer to min object
+    vector<TrackedCar>::iterator it_save;  // Save pointer to min object
     
     
     if (tracked_cars.empty()) {
@@ -408,11 +153,11 @@ void get_min_behind_cars(vector<Tracked_Vehicle> &tracked_cars, Tracked_Vehicle 
     
     
     
-    for (vector<Tracked_Vehicle>::iterator it = tracked_cars.begin(); it!=tracked_cars.end(); ++it) {
+    for (vector<TrackedCar>::iterator it = tracked_cars.begin(); it!=tracked_cars.end(); ++it) {
         
         //if (abs(it->delta_s) <= min_delta_s) { /// THIS IS DIFFERENCE TO ABOVE !!!
         if (it->delta_s >= min_delta_s) { /// THIS IS DIFFERENCE TO ABOVE !!!
-            min_delta_s = it->delta_s;  // Compare delta_s in Tracked_Vehicle object
+            min_delta_s = it->delta_s;  // Compare delta_s in TrackedCar object
             it_save = it;               // Iterator of min object by delta_s
             
             min_delta_s_tracked_car.id = it->id;
@@ -432,7 +177,7 @@ void get_min_behind_cars(vector<Tracked_Vehicle> &tracked_cars, Tracked_Vehicle 
             min_delta_s_tracked_car.future_speed_mph = it->future_speed_mph;
         }
         
-        //min_delta_s = min(min_delta_s, it->delta_s);  // Compare delta_s in Tracked_Vehicle object
+        //min_delta_s = min(min_delta_s, it->delta_s);  // Compare delta_s in TrackedCar object
         //it_save = it;
         //cout << "it,it_save=" << &it << "," << &it_save << endl;
         //cout << "min behind delta_s=" << it->delta_s << "," << min_delta_s_tracked_car.delta_s << endl;
@@ -445,565 +190,58 @@ void get_min_behind_cars(vector<Tracked_Vehicle> &tracked_cars, Tracked_Vehicle 
 }
 
 
-//
-// More Helper Functions
-//
-
-/*
-
-///------------------
-// Self Driving Car (SDC) Class
-//   This is the main data class for the Path_Planner program. This class enstantiates a self driving car object and
-//   encapsulates the data incoming from telemetry, it performs behavior and prediction functions based on a
-//   Finite State Machine (FSM) implementation and other various calculations.  SDC makes it's own decisions using FSM & cost
-//   functions and keeps it's State data internal. I have provided a few override set functions that would be used in an
-//   emergency situation like getting an SDC off the road, law enforcement,etc.
-//
-// Features: the FSM has 4 states currently: KeepLane, LaneChangeLeft, LaneChageRight as well as I added "Emergency" State for
-//   rapid de-acceleration and recovery for being cut-off or unforseen behaviors
-//
-// Structure of selfdrivingcar.CPP:
-//    Init
-//    Constructors
-//    Helper Methods
-//    Telemetry Data, Behavior & Predicition methods (4 total)
-//    Getter/Setters
-//
-// Key Data Struture:
-//    Array of lanes that contains vector of tracked vehicles for that lane per frame
-//
-// Note1: Traffic rules and sdc speed settings to Server are in MPH but tracked vehicles from sensor fusion are in
-//        meters/second. I have decided for readibility (maybe incorrectly) to do everything INTERNALLY in MPH.
-//        The function mps2mph does the conversions.
-//----------
-class SelfDrivingCar{
-
-#define FULL_SPEED_TRIGGER_POINT     30.0  // (meters)
-#define MAINTAIN_SPEED_TRIGGER_POINT 10.0  // (meters)
-    
-    
-public:
-    enum class State {Emergency, LaneChangeLeft, KeepLane, LaneChangeRight};
-    const char State_Name[4][20] = {"Emergency" , "LaneChangeLeft", "KeepLane", "LaneChangeRight"};
-
-private:
-    // Canonical
-    double sdc_x;   // add units!!
-    double sdc_y;
-    double sdc_s;
-    double sdc_d;
-    double sdc_yaw;
-    double sdc_speed;
-    double sdc_endpath_s;
-    double sdc_endpath_d;
-    
-    // Determined
-    SelfDrivingCar::State sdc_state;
-    SelfDrivingCar::State sdc_next_state;
-    
-    // External control
-    int sdc_lane;
-    double sdc_ref_vel; // This is DIFFERENT than speed. This is velocity setting sent to the Simulator Server
-
-    // Future self for FSM Behavior analysis
-    double sdc_future_s;
-    double sdc_future_speed;
-    double sdc_future_d;
-    int    sdc_future_lane;
-    
-    // SDC status
-    bool sdc_lane_change_in_process;
-    
-public:
-    // Default Constructor
-    SelfDrivingCar(){
-       
-        sdc_x = 0.0; sdc_y = 0.0; sdc_s = 0.0; sdc_d = 0.0;
-        sdc_yaw = 0.0; sdc_speed = 0.0;
-        sdc_endpath_s = 0.0; sdc_endpath_d = 0.0;
-        
-        sdc_state      = SelfDrivingCar::State::KeepLane;
-        sdc_next_state = SelfDrivingCar::State::KeepLane;
-        
-        // Match Simulator initializes sdc in 2nd from the left lane at zero speed
-        sdc_lane    = 1;    // 2nd from left lane. Lane convention=[0,1,2]
-        sdc_ref_vel = 0.0;  // 1st velocity point (MPH)
-      
-        sdc_future_s = 0.0; sdc_future_speed = 0.0;
-        sdc_future_d =0.0; sdc_future_lane = 1;
-        
-        sdc_lane_change_in_process = false;
-        
-        cout << "SDC : init w/ lane=" << sdc_lane << ", speed=" << sdc_speed << ", max speed="  << MAX_SPEED \
-             << " current State=" << State_Name[(int)sdc_state] << endl;
-    }
-    
-    // Destructor
-    virtual ~SelfDrivingCar() {}
-    
-    
-    //---
-    // Helper Methods
-    //---
-    
-    // Feasible future States to switch to for a given lane from defined Finite State Machine (FSM)
-    vector<SelfDrivingCar::State> get_feasible_next_States() {
-        
-        vector<SelfDrivingCar::State> valid_states;
-        
-        
-        valid_states = {};
-        // Left lane
-        if (sdc_lane == 0) {
-            valid_states = {SelfDrivingCar::State::KeepLane, SelfDrivingCar::State::LaneChangeRight};
-            
-        // Middle lane
-        } else if (sdc_lane == 1) {
-            valid_states = {SelfDrivingCar::State::LaneChangeLeft, SelfDrivingCar::State::KeepLane, SelfDrivingCar::State::LaneChangeRight,};
-            
-        // Right lane
-        } else if (sdc_lane == 2) {
-            valid_states = {SelfDrivingCar::State::LaneChangeLeft, SelfDrivingCar::State::KeepLane};
-            
-        } else {
-            cout << "SDC: Error, invalid lane=" << sdc_lane << endl;
-        }
-        
-        return valid_states;
-    }
-
-    
-     // Feasible future lanes to switch to for a given SDC State from defined Finite State Machine (FSM)
-     vector<int> get_feasible_next_Lanes(SelfDrivingCar::State &next_state) {
-     
-     vector<int> valid_Lanes;
-     
-         
-     valid_Lanes = {};
-     if (next_state == SelfDrivingCar::State::KeepLane) {
-         
-         valid_Lanes = {sdc_lane};
-     
-     } else if (next_state == SelfDrivingCar::State::LaneChangeLeft) {
-         
-         valid_Lanes = {sdc_lane-1};
-     
-     } else if (next_state == SelfDrivingCar::State::LaneChangeRight) {
-         
-         valid_Lanes = {sdc_lane+1};
-     }
-     
-     return valid_Lanes;
-     }
-    
-    
-    // Project self driving car into a future self to check future behaviors.  Rough trajectory - lane independent for now
-    void project_future_self(double elapsed_time) {
-     
-        //sdc_future_s = sdc_s +  (sdc_speed*elapsed_time)*.447038889;  // Convert speed in mph to delta s in meters
-        sdc_future_s = sdc_s +  mph2mps(sdc_speed*elapsed_time);  // Convert speed in mph to delta s in meters
-        sdc_future_d = sdc_lane*LANE_WIDTH + 2;
-        sdc_future_speed = sdc_speed;
-    }
-    
-    //---
-    // Data, Behavior, Prediction & Trajectory Methods for Finite State Machine
-    //---
-    
-    // 1A. Data
-    // Update car w/ localization data returned from Simulator.  Could eliminate extra copy but done for readability.
-    void update_Localization_Data(double x, double y, double s, double d, double yaw, double speed, \
-                                  double endpath_s, double endpath_d) {
-       
-        sdc_x = x;                  // car x (meters) in map
-        sdc_y = y;                  // car y (meters) in map
-        sdc_s = s;                  // car s (meters) in Frenet coord (along track)
-        sdc_d = d;                  // car d (meters) in Frenet coord (displacement from center lane)
-        sdc_yaw = yaw;            // car angle (degrees) in map. Simulation begins with car at 0 degrees pointing straight ahead
-        sdc_speed=speed;            // car speed (MPH)
-        sdc_endpath_s = endpath_s;  // last s point from prior path from Telemetry
-        sdc_endpath_d = endpath_d;  // last d point from prior path from Telemetry
-    
-    };
-    
-    
-    
-    
-    
-    
-    
-    // 2. Behavior
-    // Per Path Planning approach, update the car's behavior based on telemetry data, car state, and sensor data.
-    // This is a predicition because Trajectory update can always
-    // Input: Car data & Car State data (previous path & sensor data)
-    // Output: target lane (sdc_lane) and velocity (sdc_velocity). Availablity internally & by Get
-    void update_Behavior(const vector<double> &previous_path_x, const vector<double> &previous_path_y, \
-                         const vector<vector<double>> &sensor_fusion) {
-        
-    
-     //   A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in
-    //  map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d
-    //  position in frenet coordinates.
-    //
-        
-    //
-    // The key final loop to this is a setting of car velocity and lane selection based on The FSM selection of the best state
-    // with minimum cost
-
-    };
-    
-  
-    // 3. Predicition
-    
-    
-    
-    // 4. Trajectory
-    // Update the car's previous full trajectory path sensors, all the of detected cars in range
-    //
-    // Input: Car data & Car State data: previous path & sensor data, AND Target Lane , Target Velocity
-    // Output: target lane (sdc_lane) and target velocity (sdc_velocity). Availablity internally & by Get
-    //
-    // Method: Using Spline library for inter-point smooth interpolation
-    //
-    // Anchor points 30,60,90 (change this to seconds ahead of a 50 mph car in meters
-    //
-    
-    void update_Trajectory(const vector<double> &previous_path_x, const vector<double> &previous_path_y, \
-                           const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y, \
-                           const vector<double> &map_waypoints_s, vector<double> &x_points, vector<double> &y_points) {
-        
-       
-        // The key input from Behavior module is the lane selection & velocity. These 2 things determine how the points
-        // are generated
-        
-        
-        //
-        // I think this starts the trajectory generation section
-        //
-        // Using 5 anchor points to send to spline 1 point behind car, car and 3 ahead at 30, 60 & 90 m
-        
-        
-        // Widely spaced waypoints, evenly spaced at 30m (anchor points)
-        vector<double> ptsx = {};  // Anchor points for trajectory spline
-        vector<double> ptsy = {};
-        
-        double ref_x = sdc_x;
-        double ref_y = sdc_y; // car y (meters) in map
-        double ref_yaw = deg2rad(sdc_yaw); // car yaw (degrees)?? units but used later
-        
-        //cout << ref_x << " " << ref_y << " " << car_yaw << " " << ref_yaw << endl;
-        double car_yaw_r = deg2rad(sdc_yaw);
-       
-        
-        //
-        // 1st 2 anchor points - 1 point behind car, 1 point is car
-        //
-        int prev_size = previous_path_x.size();
-        if (prev_size < 2) {
-            
-            // Path tangent to current angle of the car
-            //double prev_car_x = sdc_x - cos(sdc_yaw);  // Need to convert to radians?
-            //double prev_car_y = sdc_y - sin(sdc_yaw);
-            
-            double prev_car_x = sdc_x - cos(car_yaw_r);  // Need to convert to radians?
-            double prev_car_y = sdc_y - sin(car_yaw_r);
-            
-            ptsx.push_back(prev_car_x);
-            ptsx.push_back(sdc_x);
-            
-            ptsy.push_back(prev_car_y);
-            ptsy.push_back(sdc_y);
-            
-            
-        } else {
-            
-            ref_x = previous_path_x[prev_size-1];
-            ref_y = previous_path_y[prev_size-1];
-            
-            double ref_x_prev = previous_path_x[prev_size-2];
-            double ref_y_prev = previous_path_y[prev_size-2];
-            ref_yaw = atan2(ref_y-ref_y_prev, ref_x-ref_x_prev);
-            
-            // Use 2 points that make path tangent to the previous path's end points
-            ptsx.push_back(ref_x_prev);
-            ptsx.push_back(ref_x);
-            
-            ptsy.push_back(ref_y_prev);
-            ptsy.push_back(ref_y);
-            
-        }
-        
-        //
-        // Create 3 more ahead Anchor Points to Frenet Space & create more points
-        vector<double> next_wp0 = getXY(sdc_s+30, (2+4*sdc_lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-        vector<double> next_wp1 = getXY(sdc_s+60, (2+4*sdc_lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-        vector<double> next_wp2 = getXY(sdc_s+90, (2+4*sdc_lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-        
-        ptsx.push_back(next_wp0[0]);
-        ptsx.push_back(next_wp1[0]);
-        ptsx.push_back(next_wp2[0]);
-        
-        ptsy.push_back(next_wp0[1]);
-        ptsy.push_back(next_wp1[1]);
-        ptsy.push_back(next_wp2[1]);
-        
-        
-        
-        // Transfer points into car reference frame (keeps spline well behaved, easier math. Class hint)
-        for (int i=0; i<ptsx.size(); i++ ) {
-            
-            // Translate, then rotate to 0 degrees. Will reverse at end: rotate and translate...
-            double shift_x = ptsx[i] - ref_x;
-            double shift_y = ptsy[i] - ref_y;
-            
-            ptsx[i] = (shift_x*cos(0-ref_yaw) - shift_y*sin(0-ref_yaw));
-            ptsy[i] = (shift_x*sin(0-ref_yaw) + shift_y*cos(0-ref_yaw));
-        }
-        
-        tk::spline s;
-        
-        //cout << "ptsx size=" << ptsx.size() << endl;
-        //cout << "ptsx before spline=" << ptsx[0] << endl;
-        //cout << "ptsy before spline=" << ptsy[0] << endl;
-        
-        
-        s.set_points(ptsx,ptsy);  // Create spline from anchor points
-        
-        
-        
-        
-        //---
-        // Define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-        // With Anchor points & car's previous path, build a
-        vector<double> next_x_vals = {};
-        vector<double> next_y_vals = {};
-        
-        for (int i=0; i<previous_path_x.size(); i++) {
-            next_x_vals.push_back(previous_path_x[i]);
-            next_y_vals.push_back(previous_path_y[i]);
-        }
-        
-        // Generate points ahead of car along spline (in local/car coordinates) (xpoint, ypoint)
-        double target_x = 30.0;  // horizon meters ahead
-        double target_y = s(target_x);
-        double target_dist = sqrt((target_x*target_x) + (target_y*target_y));
-        
-        double x_add_on = 0;  // Start at vehicle x=0
-        for (int i=1; i<=50-previous_path_x.size(); i++) {
-            
-            double N = (target_dist/(.02*sdc_ref_vel/2.24)); // convert from mph to m/s
-            double x_point = x_add_on + (target_x/N);
-            double y_point = s(x_point);
-            
-            x_add_on = x_point;
-            
-            double x_ref = x_point;
-            double y_ref = y_point;
-            
-            // Rotate back to "normal" e earlier rotation
-            x_point = x_ref*cos(ref_yaw) - y_ref*sin(ref_yaw);
-            y_point = x_ref*sin(ref_yaw) + y_ref*cos(ref_yaw);
-            
-            x_point += ref_x;
-            y_point += ref_y;
-            
-            
-            next_x_vals.push_back(x_point);
-            next_y_vals.push_back(y_point);
-        } // for
-        
-    }; // update_Trajectory
-    
-    
-    //---
-    // Getters
-    //---
-    double get_s() {
-        return sdc_s;
-    }
-    
-    SelfDrivingCar::State get_State(){
-        return sdc_state;
-    }
-
-    SelfDrivingCar::State get_next_State(){
-        return sdc_next_state;
-    }
-    
-    int get_lane(){
-        return sdc_lane;
-    }
-    
-    double get_car_speed() {
-        return sdc_speed;
-    }
-    
-    double get_future_s() {
-        return sdc_future_s;
-    }
-    
-    double get_future_lane() {
-        return sdc_future_lane;
-    }
-    
-    double get_future_speed() {
-        return sdc_future_speed;
-    }
-    
-    double get_future_d() {
-        return sdc_future_d;
-    }
-    
-    
-    //---
-    // Setters
-    //---
-    void set_State(SelfDrivingCar::State state) {
-        sdc_state = state;
-    return;
-    }
-    
-    void set_lane(int updated_lane) {
-        sdc_lane = updated_lane;
-        return;
-    }
-    
-    void set_next_State(SelfDrivingCar::State state) {
-        sdc_next_state = state;
-        return;
-    }
-    
-    void set_lane_change_in_process(bool lane_change_status) {
-        sdc_lane_change_in_process = lane_change_status;
-    return;
-    }
-    
-    
-    //---
-    // Status
-    //---
-    bool lane_change_in_process() {
-        return sdc_lane_change_in_process;
-    }
- 
-    
-}; // SelfDrivingCar Class
-
-*/
-
-
-//---
-// General Helper Functions!!
-//---
-
-/* Keep for  while
-vector<SelfDrivingCar::State> get_feasible_next_States(int &current_lane) {
-
-    vector<SelfDrivingCar::State> valid_states;
-  
-    
-    valid_states = {};
-    
-    // Left lane
-    if (current_lane == 0) {
-        valid_states = {SelfDrivingCar::State::KeepLane, SelfDrivingCar::State::LaneChangeRight};
-    
-    // Middle lane
-    } else if (current_lane == 1) {
-        valid_states = {SelfDrivingCar::State::LaneChangeLeft, SelfDrivingCar::State::KeepLane, SelfDrivingCar::State::LaneChangeRight,};
-    
-    // Right lane
-    } else if (current_lane == 2) {
-        valid_states = {SelfDrivingCar::State::LaneChangeLeft, SelfDrivingCar::State::KeepLane};
-    
-    } else {
-        cout << "Error: invalid lane=" << current_lane << endl;
-    }
-    
-    return valid_states;
-}
-*/
-
-/*
-//
-// Road Architecture - Define feasible future lanes for a given Vehicle State from Finite State Machine (FSM)
-//
-
-vector<int> get_feasible_next_Lanes(SelfDrivingCar::State &next_state, int &current_lane) {
-    
-    vector<int> valid_Lanes;
-    
-    valid_Lanes = {};
-    
-    
-    if (next_state == SelfDrivingCar::State::KeepLane) {
-        valid_Lanes = {current_lane};
-    }  else if (next_state == SelfDrivingCar::State::LaneChangeLeft) {
-        valid_Lanes = {current_lane-1};
-    }  else if (next_state == SelfDrivingCar::State::LaneChangeRight) {
-        valid_Lanes = {current_lane+1};
-    }
-    
-    
-    //
-    //if (state == SelfDrivingCar::State::LaneChangeRight) {
-    //    valid_Lanes = {0,1};
-    //} else if (state == SelfDrivingCar::State::KeepLane) {
-    //    valid_Lanes = {0,1,2};
-    //} else if (state == SelfDrivingCar::State::LaneChangeLeft) {
-    //    valid_Lanes = {1,2};
-    //}
-    //
-     
-    return valid_Lanes;
-}
-*/
-
-
-
-
-
 
 //
 // More Helper Functions - Going into COST.H!!!
 //
 
 
-// Cost for potential collision ahead. 0.0=ok, 1.0=no or right lane
-double cost_Collision_Ahead(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> &cars_ahead, \
-                            Tracked_Vehicle &min_ahead_car, int &proposed_lane) {
+// Cost for potential collision ahead & behind. 0.0=ok, 1.0 or 2.0=collision risk based on safety distances
+double cost_Collision_Risk(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead,  \
+                                                array<vector<TrackedCar>,NUM_LANES> &cars_behind, \
+                                                TrackedCar &min_ahead_car, TrackedCar &min_behind_car, int &proposed_lane) {
     
-#define AHEAD_COLLISION 15.0 //(meters)
+#define AHEAD_COLLISION_RISK   10.0 // (meters) 15.0 worked
+#define BEHIND_COLLISION_RISK  10.0 // (meters)
     
-    //Tracked_Vehicle min_ahead_car = {};
+    // Default
     double cost = 0.0;
     
     
-    // Cost = 1 if collide, 0 otherwise. Will have large weight factor
+    // Look ahead
     if (cars_ahead[proposed_lane].size() > 0) {
         double future_delta_s =  min_ahead_car.get_future_s() - sdc.get_future_s();
-        if (abs(future_delta_s) <= AHEAD_COLLISION) {
+        if (abs(future_delta_s) <= AHEAD_COLLISION_RISK) {
             cost = 1.0;
             cout << "1. cost: collision ahead=" << min_ahead_car.get_future_s() << "," << sdc.get_future_s() << "," \
-                 << future_delta_s << "," << 1.0 << endl;
-            return cost;
-        } else {
-            cout << "1. cost: collision ahead=0.0" << endl;
-            return 0.0;
+                 << future_delta_s << "," << cost << endl;
+            //return cost;
         }
     }
-    cout << "1. cost: no cars, collision=0.0" << endl;
+    
+    // Look behind
+    if (cars_behind[proposed_lane].size() > 0) {
+        double future_delta_s =  min_behind_car.get_future_s() - sdc.get_future_s();
+        if (abs(future_delta_s) <= BEHIND_COLLISION_RISK) {
+            cost = 1.0;
+            cout << "1. cost: collision behind=" << min_behind_car.get_future_s() << "," << sdc.get_future_s() << "," \
+            << future_delta_s << "," << cost << endl;
+            //return cost;
+        }
+    }
+    
+    cout << "1. cost: collision total=" << cost << endl;
     return cost;
 }
 
 
 // Cost for potential lane change. 0.0=ok, 1.0 or 2.0=no or right lane
-double cost_Lane_Movement(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> &cars_ahead, \
-                           array<vector<Tracked_Vehicle>,NUM_LANES> &cars_behind, Tracked_Vehicle &min_ahead_car, \
-                           Tracked_Vehicle &min_behind_car, int &proposed_lane) {
+double cost_Lane_Movement(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead, \
+                           array<vector<TrackedCar>,NUM_LANES> &cars_behind, TrackedCar &min_ahead_car, \
+                           TrackedCar &min_behind_car, int &proposed_lane) {
     
 #define AHEAD_SEPERATION  20.0  // 30 working (meters) Helps box-in recover (Tuned at 50 mph - scales inversely with speed down
-#define BEHIND_SEPERATION 22.0 // 10 was working, 20 now with scale code 12.5 good, 15 was working (meters)  SHOULD BE LARGER?
+#define BEHIND_SEPERATION 20.0 // 10 was working, 20 now with scale code 12.5 good, 15 was working (meters)  SHOULD BE LARGER?
     
     
     double cost = 0.0;
@@ -1060,10 +298,10 @@ double cost_Lane_Movement(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM
 }
 
 // Cost is [0-1] based on 1.0-% of speed.  Higher # is worse
-double cost_Closest_Vehicle_Ahead(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> &cars_ahead, \
-                                  Tracked_Vehicle &min_ahead_car, int &proposed_lane) {
+double cost_Closest_Vehicle_Ahead(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead, \
+                                  TrackedCar &min_ahead_car, int &proposed_lane) {
     
-   // Tracked_Vehicle min_ahead_car;
+   // TrackedCar min_ahead_car;
     double cost = 0.0;
     
     // Need to add size check
@@ -1084,8 +322,8 @@ double cost_Closest_Vehicle_Ahead(SelfDrivingCar &sdc, array<vector<Tracked_Vehi
 
 
 // Cost is [0-1] based on 1.0-% of speed.  Higher # is worse
-double cost_Speed(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> &cars_ahead, \
-                  Tracked_Vehicle &min_ahead_car, int &proposed_lane) {
+double cost_Speed(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead, \
+                  TrackedCar &min_ahead_car, int &proposed_lane) {
     
     #define FULL_THROTTLE_DISTANCE 75.0  // (meters)
     
@@ -1124,14 +362,14 @@ double cost_Speed(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> 
 
 
 // Cost is # of cars in lane [0,1,2,3,4...]. Higher # is worse
-double cost_Number_Of_Vehicles_In_Lane_Ahead(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> &cars_ahead, \
+double cost_Number_Of_Vehicles_In_Lane_Ahead(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead, \
                                              int &proposed_lane) {
     
     // Start w/ no cost
     double cost = 0.0;
     
     if (cars_ahead[proposed_lane].size() > 0) {
-        for (vector<Tracked_Vehicle>::iterator it=cars_ahead[proposed_lane].begin(); it!=cars_ahead[proposed_lane].end(); ++it) {
+        for (vector<TrackedCar>::iterator it=cars_ahead[proposed_lane].begin(); it!=cars_ahead[proposed_lane].end(); ++it) {
             double delta_s = it->get_future_s()  - sdc.get_future_s();
             if (delta_s <= HORIZON) cost += 1.0;  // Add one to the cost, if deteted car within Horizon
         }
@@ -1167,11 +405,11 @@ double cost_Fast_Lane(int &proposed_lane) {
 //
 // Note: the weights are in front of each function
 //
-double cost_For_Proposed_Trajectory(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> &cars_ahead, \
-                                    array<vector<Tracked_Vehicle>,NUM_LANES> &cars_behind, int proposed_lane) {
+double cost_For_Proposed_Trajectory(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead, \
+                                    array<vector<TrackedCar>,NUM_LANES> &cars_behind, int proposed_lane) {
    
-    Tracked_Vehicle min_ahead_car;
-    Tracked_Vehicle min_behind_car;
+    TrackedCar min_ahead_car;
+    TrackedCar min_behind_car;
     double total_cost;
     
     
@@ -1194,7 +432,7 @@ double cost_For_Proposed_Trajectory(SelfDrivingCar &sdc, array<vector<Tracked_Ve
     //cout << "min cars in future: " << min_ahead_car.get_future_s() << " " << min_behind_car.get_future_s() << endl;
     
     // Calculate total cost. Coefficients are weights of each cost type
-    total_cost +=  1000.0 * cost_Collision_Ahead(sdc, cars_ahead, min_ahead_car, proposed_lane);
+    total_cost +=  1000.0 * cost_Collision_Risk(sdc, cars_ahead, cars_behind, min_ahead_car, min_behind_car, proposed_lane);
     total_cost +=  1000.0 * cost_Lane_Movement(sdc, cars_ahead, cars_behind, min_ahead_car, min_behind_car, proposed_lane);
     total_cost +=   150.0 * cost_Closest_Vehicle_Ahead(sdc, cars_ahead, min_ahead_car, proposed_lane); // (like 1.5 cars) 50 100
     total_cost +=    20.0 * cost_Speed(sdc, cars_ahead, min_ahead_car, proposed_lane);                 // New!
@@ -1321,31 +559,31 @@ int main() {
 
             //
             // Step #2. Update Car's Sensor Localization Data (i.e. other nearby cars called "sensor fusion")
-            // THIS WILL BECOME av1.update_Tracked_Vehicles
-            // create_Tracked_Vehicle..(sensor_fusion,cars_ahead,cars_behind,min_ahead
+            // THIS WILL BECOME av1.update_TrackedCars
+            // create_TrackedCar..(sensor_fusion,cars_ahead,cars_behind,min_ahead
             
             // Experiment
-            //array<vector<Tracked_Vehicle>,NUM_LANES> cars = {};
-            //array<vector<Tracked_Vehicle>,NUM_LANES> cars_ahead3 = {};
-            //array<vector<Tracked_Vehicle>,NUM_LANES> cars_behind3 = {};
+            //array<vector<TrackedCar>,NUM_LANES> cars = {};
+            //array<vector<TrackedCar>,NUM_LANES> cars_ahead3 = {};
+            //array<vector<TrackedCar>,NUM_LANES> cars_behind3 = {};
            
-            array<vector<Tracked_Vehicle>,NUM_LANES> cars_ahead = {};
-            array<vector<Tracked_Vehicle>,NUM_LANES> cars_behind = {};
+            array<vector<TrackedCar>,NUM_LANES> cars_ahead = {};
+            array<vector<TrackedCar>,NUM_LANES> cars_behind = {};
            
             
             //array<double,NUM_LANES> min_ahead_delta_s = {};
             //array<double,NUM_LANES> min_behind_delta_s = {};
 
             /*
-            vector<Tracked_Vehicle> l0_cars_ahead = {};
-            vector<Tracked_Vehicle> l0_cars_behind = {};
-            vector<Tracked_Vehicle> l1_cars_ahead = {};
-            vector<Tracked_Vehicle> l1_cars_behind = {};
-            vector<Tracked_Vehicle> l2_cars_ahead = {};
-            vector<Tracked_Vehicle> l2_cars_behind = {};
+            vector<TrackedCar> l0_cars_ahead = {};
+            vector<TrackedCar> l0_cars_behind = {};
+            vector<TrackedCar> l1_cars_ahead = {};
+            vector<TrackedCar> l1_cars_behind = {};
+            vector<TrackedCar> l2_cars_ahead = {};
+            vector<TrackedCar> l2_cars_behind = {};
             */
              
-            Tracked_Vehicle new_tracked_car = {};
+            TrackedCar new_tracked_car = {};
             
             
             for (int i=0; i<sensor_fusion.size(); i++) {
@@ -1407,8 +645,8 @@ int main() {
             // Store tracked min car ahead & behind for each lane
             // PROGRAM THIS
             // Store min cars ahead for each lane
-            array<Tracked_Vehicle,NUM_LANES> min_ahead_cars = {};
-            array<Tracked_Vehicle,NUM_LANES> min_behind_cars = {};
+            array<TrackedCar,NUM_LANES> min_ahead_cars = {};
+            array<TrackedCar,NUM_LANES> min_behind_cars = {};
             for (int i=0; i<NUM_LANES; i++) {
                 // <TODO> GET RID OF ONE OR THE OTHER
                 get_min_ahead_cars(cars_ahead[i],min_ahead_cars[i]);
@@ -1515,7 +753,7 @@ int main() {
                     cout << "car ahead lane1: s now=";
                     
                     // Check before
-                    for (vector<Tracked_Vehicle>::iterator it=cars_ahead[1].begin(); it!=cars_ahead[1].end(); ++it) {
+                    for (vector<TrackedCar>::iterator it=cars_ahead[1].begin(); it!=cars_ahead[1].end(); ++it) {
                         it->project_future_self(TIME_AHEAD,lane);  // SHOULD BE ABLE TO TAKE OUT LANE PART
                         cout << it->get_s() << ",";
                     }
@@ -1524,19 +762,19 @@ int main() {
                     for (int lane=0; lane<=NUM_LANES-1; lane++) {
                         
                         // Detected cars ahead
-                        for (vector<Tracked_Vehicle>::iterator it=cars_ahead[lane].begin(); it!=cars_ahead[lane].end(); ++it) {
+                        for (vector<TrackedCar>::iterator it=cars_ahead[lane].begin(); it!=cars_ahead[lane].end(); ++it) {
                             it->project_future_self(TIME_AHEAD,lane);  // SHOULD BE ABLE TO TAKE OUT LANE PART
                         }
                         
                         // Detected cars behind
-                        for (vector<Tracked_Vehicle>::iterator it=cars_behind[lane].begin(); it!=cars_behind[lane].end(); ++it) {
+                        for (vector<TrackedCar>::iterator it=cars_behind[lane].begin(); it!=cars_behind[lane].end(); ++it) {
                             it->project_future_self(TIME_AHEAD,lane);
                         }
                     } // for
                     
                     // Check after
                     cout << "car ahead lane1: s future=";
-                    for (vector<Tracked_Vehicle>::iterator it=cars_ahead[1].begin(); it!=cars_ahead[1].end(); ++it) {
+                    for (vector<TrackedCar>::iterator it=cars_ahead[1].begin(); it!=cars_ahead[1].end(); ++it) {
                         it->project_future_self(TIME_AHEAD,lane);  // SHOULD BE ABLE TO TAKE OUT LANE PART
                         cout << it->get_future_s() << ",";
                     }
@@ -1661,7 +899,7 @@ int main() {
             //----------
             cout << "Step #3 - Prediction (decide lane & velocity w/ current & next state:" << endl;
             
-            Tracked_Vehicle min_car_ahead = {};
+            TrackedCar min_car_ahead = {};
             SelfDrivingCar::State curr_state,next_state;  // SDC states
             
             

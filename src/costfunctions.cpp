@@ -26,12 +26,12 @@ using namespace std;
 
 /*
 // Cost for potential collision ahead. 0.0=ok, 1.0=no or right lane
-double cost_Collision_Ahead(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> &cars_ahead, \
-                            Tracked_Vehicle &min_ahead_car, int &proposed_lane) {
+double cost_Collision_Ahead(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead, \
+                            TrackedCar &min_ahead_car, int &proposed_lane) {
     
 #define AHEAD_COLLISION 15.0 //(meters)
     
-    //Tracked_Vehicle min_ahead_car = {};
+    //TrackedCar min_ahead_car = {};
     double cost = 0.0;
     
     
@@ -54,9 +54,9 @@ double cost_Collision_Ahead(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,N
 
 
 // Cost for potential lane change. 0.0=ok, 1.0 or 2.0=no or right lane
-double cost_Lane_Movement(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> &cars_ahead, \
-                          array<vector<Tracked_Vehicle>,NUM_LANES> &cars_behind, Tracked_Vehicle &min_ahead_car, \
-                          Tracked_Vehicle &min_behind_car, int &proposed_lane) {
+double cost_Lane_Movement(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead, \
+                          array<vector<TrackedCar>,NUM_LANES> &cars_behind, TrackedCar &min_ahead_car, \
+                          TrackedCar &min_behind_car, int &proposed_lane) {
     
 #define AHEAD_SEPERATION  20.0  // 30 working (meters) Helps box-in recover (Tuned at 50 mph - scales inversely with speed down
 #define BEHIND_SEPERATION 22.0 // 10 was working, 20 now with scale code 12.5 good, 15 was working (meters)  SHOULD BE LARGER?
@@ -114,10 +114,10 @@ double cost_Lane_Movement(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM
 }
 
 // Cost is [0-1] based on 1.0-% of speed.  Higher # is worse
-double cost_Closest_Vehicle_Ahead(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> &cars_ahead, \
-                                  Tracked_Vehicle &min_ahead_car, int &proposed_lane) {
+double cost_Closest_Vehicle_Ahead(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead, \
+                                  TrackedCar &min_ahead_car, int &proposed_lane) {
     
-    // Tracked_Vehicle min_ahead_car;
+    // TrackedCar min_ahead_car;
     double cost = 0.0;
     
     // Need to add size check
@@ -138,8 +138,8 @@ double cost_Closest_Vehicle_Ahead(SelfDrivingCar &sdc, array<vector<Tracked_Vehi
 
 
 // Cost is [0-1] based on 1.0-% of speed.  Higher # is worse
-double cost_Speed(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> &cars_ahead, \
-                  Tracked_Vehicle &min_ahead_car, int &proposed_lane) {
+double cost_Speed(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead, \
+                  TrackedCar &min_ahead_car, int &proposed_lane) {
     
 #define FULL_THROTTLE_DISTANCE 75.0  // (meters)
     
@@ -173,14 +173,14 @@ double cost_Speed(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> 
 
 
 // Cost is # of cars in lane [0,1,2,3,4...]. Higher # is worse
-double cost_Number_Of_Vehicles_In_Lane_Ahead(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> &cars_ahead, \
+double cost_Number_Of_Vehicles_In_Lane_Ahead(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead, \
                                              int &proposed_lane) {
     
     // Start w/ no cost
     double cost = 0.0;
     
     if (cars_ahead[proposed_lane].size() > 0) {
-        for (vector<Tracked_Vehicle>::iterator it=cars_ahead[proposed_lane].begin(); it!=cars_ahead[proposed_lane].end(); ++it) {
+        for (vector<TrackedCar>::iterator it=cars_ahead[proposed_lane].begin(); it!=cars_ahead[proposed_lane].end(); ++it) {
             double delta_s = it->get_future_s()  - sdc.get_future_s();
             if (delta_s <= HORIZON) cost += 1.0;  // Add one to the cost, if deteted car within Horizon
         }
@@ -216,11 +216,11 @@ double cost_Fast_Lane(int &proposed_lane) {
 //
 // Note: the weights are in front of each function
 //
-double cost_For_Proposed_Trajectory(SelfDrivingCar &sdc, array<vector<Tracked_Vehicle>,NUM_LANES> &cars_ahead, \
-                                    array<vector<Tracked_Vehicle>,NUM_LANES> &cars_behind, int proposed_lane) {
+double cost_For_Proposed_Trajectory(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead, \
+                                    array<vector<TrackedCar>,NUM_LANES> &cars_behind, int proposed_lane) {
     
-    Tracked_Vehicle min_ahead_car;
-    Tracked_Vehicle min_behind_car;
+    TrackedCar min_ahead_car;
+    TrackedCar min_behind_car;
     double total_cost;
     
     

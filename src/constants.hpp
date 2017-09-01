@@ -23,9 +23,9 @@
 
 
 #define HORIZON    175.0       // 200.0 300.0 (meters)  Horizon over which to track vehicles and sensor data
-#define TIME_AHEAD   1.75       // 2.0 working 1.0 1.25 1.5 1.0 2.0 (seconds)  Projection ahead for rough trajectory (less time means safer distance)
+#define TIME_AHEAD   2.0       // 1.75 2.0 working 1.0 1.25 1.5 1.0 2.0 (seconds)  Projection ahead for rough trajectory (less time means safer distance)
 
-#define MAX_SPEED  49.86       // !49.87 49.86 works 49.80 49.88 was too high, (49.875,49.8725,49.87120, 49.871, 49.87) too high for max accel speed variations
+#define MAX_SPEED  49.80       // !49.87 49.86 works 49.80 49.88 was too high, (49.875,49.8725,49.87120, 49.871, 49.87,49.86) too high for max accel speed variations
 
 #define DEBUG      true
 
