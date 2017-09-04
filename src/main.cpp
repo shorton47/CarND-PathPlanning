@@ -98,8 +98,8 @@ int main() {
     // Key project variables & init values for main
     //
     
-    //string map_file_ = "../data/highway_map.csv";      // Waypoint map to read from
-    string map_file_ = "../data/highway_map_bosch1.csv"; // Waypoint map to read from
+    string map_file_ = "../data/highway_map.csv";      // Waypoint map to read from
+    //string map_file_ = "../data/highway_map_bosch1.csv"; // Waypoint map to read from
    
     long frame_cnt = 0L;                  // Telemetry frame count
     int lane_change_in_progress_cnt = 0;  // Telemetry frame count for lane change progress
@@ -142,7 +142,7 @@ int main() {
         map_waypoints_dx.push_back(d_x);
         map_waypoints_dy.push_back(d_y);
     } // end Waypoint map load
-    cout << "Main: Waypoint file=" << map_file_ << ". # of Waypoints read=" << map_waypoints_x.size() << endl;
+    cout << "Main: Waypoint file=" << map_file_ << ", No. of Waypoints read=" << map_waypoints_x.size() << endl;
 
     
     //---
@@ -189,12 +189,12 @@ int main() {
           	auto sensor_fusion = j[1]["sensor_fusion"]; // Array of detected other cars from car's sensors
             
             //---
-            // Step #1A: Update Car's Localization data
+            // Step #1A: Update SD Car's (localization) data
             //---
             av1.update_Localization_Data(car_x,car_y,car_s,car_d,car_yaw,car_speed,end_path_s,end_path_d);
           
             //
-            // Step #1B. Update Car's Sensor Localization Data (i.e. other nearby cars called "sensor fusion")
+            // Step #1B. Update SD Car's sensor localization data (i.e. other nearby cars called "sensor fusion")
             // This will become av1.update_TrackedCars after I have more time for refactor
             array<vector<TrackedCar>,NUM_LANES> cars_ahead = {};
             array<vector<TrackedCar>,NUM_LANES> cars_behind = {};
@@ -203,15 +203,24 @@ int main() {
             for (int i=0; i<sensor_fusion.size(); i++) {
                 
                 float d = sensor_fusion[i][6];
-                float delta_s = (float)sensor_fusion[i][5] - car_s;
+                float vehicle_s = (float)sensor_fusion[i][5];
+                float delta_s   = vehicle_s - car_s;
                 
+                // Further Debug
+                float vx = sensor_fusion[i][3];
+                float vy = sensor_fusion[i][4];
+                float vel = sqrt(vx*vx + vy*vy);
+                
+
                 // On road
                 if (d >= 0.0 && d <= 12.0) {
-                    
+                    //printf( "%7s %9s %9s %9s %9s %9s \n" , "i","d","vehicle_s","car_s","delta_s","vehicle_vel");
+
                     // Lane 0
                     if (d >= 0.0 && d < 4.0) {
-                        cout << "l0: id,d,sensor,sdc,delta_s=" << i << " " << d << " " << (float)sensor_fusion[i][5] << " " \
-                                                               << car_s << " " << delta_s << endl;
+                        printf("l0: %3d  %8.2f  %8.2f  %8.2f  %8.2f  %8.2f \n",i ,d ,vehicle_s, car_s, delta_s, vel);
+                        
+                        
                         new_tracked_car.add_sensor_fusion_data(sensor_fusion[i], delta_s);
                     
                         if ((delta_s >= 0.0) && (delta_s <= HORIZON)) {
@@ -223,8 +232,10 @@ int main() {
                     // Lane 1
                     } else if (d >= 4.0 && d < 8.0) {
                         
-                        cout << "l1: id,d,sf,cars,delta_s=" << i     << " " << d << " " << (float)sensor_fusion[i][5] << " " \
-                                                            << car_s << " " << delta_s << endl;
+                        //cout << "l1: id,d,sf,cars,delta_s=" << i     << " " << d << " " << (float)sensor_fusion[i][5] << " " \
+                        //                                    << car_s << " " << delta_s << endl;
+                        printf("l1: %3d  %8.2f  %8.2f  %8.2f  %8.2f  %8.2f \n",i ,d ,vehicle_s, car_s, delta_s, vel);
+
                         
                         new_tracked_car.add_sensor_fusion_data(sensor_fusion[i], delta_s);
                         
@@ -237,8 +248,11 @@ int main() {
                     // Lane 2
                     } else if (d >= 8.0 && d <= 12.0) {
 
-                        cout << "l2: id,d,sf,cars,delta_s=" << i     << " " << d << " " << (float)sensor_fusion[i][5] << " " \
-                                                            << car_s << " " << delta_s << endl;
+                        //cout << "l2: id,d,sf,cars,delta_s=" << i     << " " << d << " " << (float)sensor_fusion[i][5] << " " \
+                        //                                    << car_s << " " << delta_s << endl;
+                        printf("l2: %3d  %8.2f  %8.2f  %8.2f  %8.2f  %8.2f \n",i ,d ,vehicle_s, car_s, delta_s, vel);
+
+
                         
                         new_tracked_car.add_sensor_fusion_data(sensor_fusion[i], delta_s);
                         //tracked_car.setDelta_S(delta_s);
@@ -261,7 +275,7 @@ int main() {
             }
             
             // Debug
-            cout << "Step #1 SDC data current lane=" << lane << " speed=" << ref_vel << " mph" << endl;
+            cout << "Step #1 SDC current lane=" << lane << " speed=" << ref_vel << " mph" << endl;
             cout << "Cars ahead:" << endl;
             for (int i=0; i<NUM_LANES; i++) {
                cout << "L" << i << " # of cars=" << cars_ahead[i].size() << " min s=" << min_ahead_cars[i].get_delta_s() << endl;
@@ -312,17 +326,17 @@ int main() {
                 // Current State = Emergency State.  Same new State until ahead_vehicle clears enough
                 case (SelfDrivingCar::State::Emergency):
                     
-                    cout << "Prediction: Current State=" << (int)SelfDrivingCar::State::Emergency << endl;
-                    if (min_ahead_cars[lane].get_delta_s() < 10.0) {
+                    if (min_ahead_cars[lane].get_delta_s() < SAFETY_DISTANCE) {
                         
-                        // Fall through - Keep slowing down a
+                        // Fall through - Keep slowing down
                         av1.set_next_State(SelfDrivingCar::State::Emergency);
-                        cout << "Prediction: Next State=" << (int)SelfDrivingCar::State::Emergency << endl;
+                        cout << "Current State=ES, Next State=ES" << endl;
+                    
                     } else {
                         
                         // Can come out of it
                         av1.set_next_State(SelfDrivingCar::State::KeepLane);
-                        cout << "Prediction: Next State=" << (int)SelfDrivingCar::State::KeepLane << endl;
+                         cout << "Current State=ES, Next State=KL" << endl;
                     }
                 break;
                     
@@ -341,19 +355,19 @@ int main() {
                 
                     // Step #1B. Project tracked vehicles forward in time & add to their objects
                     // Debug check before
-                    cout << "car ahead lane1: s future=";
-                    for (vector<TrackedCar>::iterator it=cars_ahead[1].begin(); it!=cars_ahead[1].end(); ++it) {
-                        it->project_future_self(TIME_AHEAD,lane);  // <TODO> SHOULD BE ABLE TO TAKE OUT LANE PART
-                        cout << it->get_s() << ",";
-                    }
-                    cout << endl;
+                    //cout << "car ahead lane1: s future=";
+                    //for (vector<TrackedCar>::iterator it=cars_ahead[1].begin(); it!=cars_ahead[1].end(); ++it) {
+                    //    it->project_future_self(TIME_AHEAD,lane);  // <TODO> SHOULD BE ABLE TO TAKE OUT LANE PART
+                    //    cout << it->get_s() << ",";
+                    //}
+                    //cout << endl;
                     
-                    // Project all vehicles, all lanes
+                    // Project all vehicles, all lanes ahead for up-coming lane movement check
                     for (int lane=0; lane<=NUM_LANES-1; lane++) {
                         
                         // Detected cars ahead
                         for (vector<TrackedCar>::iterator it=cars_ahead[lane].begin(); it!=cars_ahead[lane].end(); ++it) {
-                            it->project_future_self(TIME_AHEAD,lane);  // SHOULD BE ABLE TO TAKE OUT LANE PART
+                            it->project_future_self(TIME_AHEAD,lane);
                         }
                         
                         // Detected cars behind
@@ -362,13 +376,20 @@ int main() {
                         }
                     } // for
                     
-                    // Debug check after
-                    cout << "car ahead lane1: s future=";
-                    for (vector<TrackedCar>::iterator it=cars_ahead[1].begin(); it!=cars_ahead[1].end(); ++it) {
-                        it->project_future_self(TIME_AHEAD,lane);  // SHOULD BE ABLE TO TAKE OUT LANE PART
-                        cout << it->get_future_s() << ",";
+                    // Debug check after projection
+                    cout << "tracked cars ahead future=\n";
+                    for (int i=0; i<NUM_LANES; i++) {
+                        for (vector<TrackedCar>::iterator it=cars_ahead[i].begin(); it!=cars_ahead[i].end(); ++it) {
+                            it->project_future_self(TIME_AHEAD,i);
+                            //cout << it->get_future_s() << ",";
+                            double s = it->get_s();
+                            double future_s = it->get_future_s();
+                            double delta_s = future_s - s;
+                            double vehicle_speed = it->get_speed_mph();
+                            printf("%3d  %8.2f  %8.2f  %8.2f  %8.2f \n",i ,s ,future_s, delta_s, vehicle_speed);
+                        }
                     }
-                    cout << endl;
+                    //cout << endl;
                     
                     
                     // Step #2. Calculate forecasted cost
@@ -437,7 +458,7 @@ int main() {
                     lane_change_in_progress_cnt += 1;
                     if (lane_change_in_progress_cnt < (int)TIME_AHEAD*FPS) {   // ~2 <TODO> Formalize hold until complete
                         av1.set_next_State(SelfDrivingCar::State::LaneChangeRight);
-                    } else if (lane_change_in_progress_cnt >= (int)TIME_AHEAD*FPS) {
+                    } else if (lane_change_in_progress_cnt >= (int)LANE_CHANGE_TIMER*FPS) {
                         lane_change_in_progress_cnt = 0;
                         av1.set_next_State(SelfDrivingCar::State::KeepLane);
                         av1.set_State(SelfDrivingCar::State::KeepLane);
@@ -490,25 +511,25 @@ int main() {
                     
                     if (curr_state == SelfDrivingCar::State::Emergency) {
                         
-                        ref_vel -= .40;           // Emergency 20 mph/(1sec*50) drop (at project limits) <TODO> correct comment
-                        if (DEBUG) cout << "EE: decel ref_vel=" << ref_vel << endl;
+                        ref_vel -= MAX_ACCEL; // Emergency de-celeration (at project limits)
+                        if (DEBUG) cout << "E+E: decel ref_vel=" << ref_vel << endl;
                         
                     } else if (curr_state == SelfDrivingCar::State::KeepLane) {
                           
-                        ref_vel += .10*ref_vel; // Come out of it slowly
-                        if (DEBUG) cout << "KLE: come out of it slowly ref_vel=" << ref_vel << endl;
+                        ref_vel += .05*ref_vel; // Come out of it slowly
+                        if (DEBUG) cout << "E+KL: come out of it slowly ref_vel=" << ref_vel << endl;
                       
                     } else if (curr_state == SelfDrivingCar::State::LaneChangeRight) {
                           
                         lane -= 1;              // Abort lane change, return at same speed
                         av1.set_lane(lane);
-                        if (DEBUG) cout << "LCRE: aborted Right Lane Change. Back to lane=" << lane << endl;
+                        if (DEBUG) cout << "E+LCR: aborted Right Lane Change. Back to lane=" << lane << endl;
                           
                     } else if (curr_state == SelfDrivingCar::State::LaneChangeLeft) {
                           
                         lane += 1;             // Abort lane change, return at same speed
                         av1.set_lane(lane);
-                        if (DEBUG) cout << "LCLE: aborted Left Lane Change. Back to lane=" << lane << endl;
+                        if (DEBUG) cout << "E+LCL: aborted Left Lane Change. Back to lane=" << lane << endl;
                       }
                 break;
                     

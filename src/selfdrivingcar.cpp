@@ -65,8 +65,8 @@ SelfDrivingCar::SelfDrivingCar() {
         
     sdc_lane_change_in_process = false;
         
-    cout << "SDC : init w/ lane=" << sdc_lane << ", speed=" << sdc_speed << ", max speed="  << MAX_SPEED \
-         << " current State=" << State_Name[(int)sdc_state] << endl;
+    cout << "SDC : car init on lane=" << sdc_lane << ", curr speed=" << sdc_speed <<", max speed=" << MAX_SPEED << " mph" << endl;
+    cout << "SDC : max acceleration=" << MAX_ACCEL << " m/s2, initial FSM State='" << State_Name[(int)sdc_state] << "'" << endl;
 }
     
 // Destructor
@@ -131,11 +131,12 @@ vector<int> SelfDrivingCar::get_feasible_next_Lanes(SelfDrivingCar::State &next_
 // Project self driving car into a future self to check future behaviors.  Rough trajectory - lane independent for now
 void SelfDrivingCar::project_future_self(double elapsed_time) {
     
-    cout << "av1 pfs: time,speed" << elapsed_time << " " << sdc_speed << endl;
         sdc_future_s = sdc_s +  (sdc_speed*elapsed_time)*.447038889;  // Convert speed in mph to delta s in meters
         //sdc_future_s = sdc_s +  (sdc_speed*elapsed_time);  // Convert speed in mph to delta s in meters
         sdc_future_d = sdc_lane*LANE_WIDTH + 2;
         sdc_future_speed = sdc_speed;
+        cout << "av1: s=" << sdc_s << " future_s=" << sdc_future_s << " speed=" << sdc_speed << " mph" << endl;
+
 };
 
 

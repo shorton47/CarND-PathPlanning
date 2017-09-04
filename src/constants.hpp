@@ -22,11 +22,15 @@
 #define LANE_WIDTH   4.0       // Width of each lane (meters)
 
 #define HORIZON    175.0       // (meters) Horizon over which to track vehicles from sensor data (old: 200,300)
-#define TIME_AHEAD   2.0       // (seconds) Time projection ahead for rough trajectory (old: 1.0, 1,5, 1.75)
-#define MAX_SPEED  49.80       // (mph) Max speed allowed (too high 49.86)
+#define TIME_AHEAD   1.5       // 2.0 (seconds) Time projection ahead for rough trajectory (old: 1.0, 1,5, 1.75)
 
-#define SAFETY_DISTANCE 5.0    // (meters) Safety distance to nearest car to invoke emergency manuvers
+#define MAX_SPEED  49.83         // (mph) Max speed allowed minus buffer (49.86 triggered max speed limit)
+#define MAX_ACCEL   0.4425     // (m/s) converted from 10m/s2 requirement to delta vel based on .02 second delta time - buffer
+                                 // Maximum 10ms2 accleration limit in mph/.02 sec for startup (0.447872584)
 
+#define SAFETY_DISTANCE 10.0    // (meters) Safety distance to nearest car to invoke emergency manuevers
+
+#define LANE_CHANGE_TIMER 1.5  // (seconds) Hold lane change before analyzing Keep or not (prevents back and forth lane changes)
 
 #define DEBUG      true
 

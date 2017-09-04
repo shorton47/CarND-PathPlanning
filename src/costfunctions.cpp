@@ -50,10 +50,9 @@ double cost_Collision_Risk(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LAN
         double future_delta_s =  min_ahead_car.get_future_s() - sdc.get_future_s();
         if (abs(future_delta_s) <= AHEAD_COLLISION_RISK) {
             cost = 1.0;
-            cout << "1. cost: collision ahead=" << min_ahead_car.get_future_s() << "," << sdc.get_future_s() << "," \
-            << future_delta_s << "," << cost << endl;
-            //return cost;
         }
+        cout << "1. cost: collision ahead=" << min_ahead_car.get_future_s() << "," << sdc.get_future_s() << "," \
+        << future_delta_s << "," << cost << endl;
     }
     
     // Look behind
@@ -61,10 +60,9 @@ double cost_Collision_Risk(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LAN
         double future_delta_s =  min_behind_car.get_future_s() - sdc.get_future_s();
         if (abs(future_delta_s) <= BEHIND_COLLISION_RISK) {
             cost = 1.0;
-            cout << "1. cost: collision behind=" << min_behind_car.get_future_s() << "," << sdc.get_future_s() << "," \
-            << future_delta_s << "," << cost << endl;
-            //return cost;
         }
+        cout << "1. cost: collision behind=" << min_behind_car.get_future_s() << "," << sdc.get_future_s() << "," \
+        << future_delta_s << "," << cost << endl;
     }
     
     cout << "1. cost: collision total=" << cost << endl;
@@ -77,8 +75,8 @@ double cost_Lane_Movement(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANE
                           array<vector<TrackedCar>,NUM_LANES> &cars_behind, TrackedCar &min_ahead_car, \
                           TrackedCar &min_behind_car, int &proposed_lane) {
     
-#define AHEAD_SEPERATION  20.0  // 30 working (meters) Helps box-in recover (Tuned at 50 mph - scales inversely with speed down
-#define BEHIND_SEPERATION 20.0 // 10 was working, 20 now with scale code 12.5 good, 15 was working (meters)  SHOULD BE LARGER?
+#define AHEAD_SEPERATION  17.5  // 30 working (meters) Helps box-in recover (Tuned at 50 mph - scales inversely with speed down
+#define BEHIND_SEPERATION 17.5 // 10 was working, 20 now with scale code 12.5 good, 15 was working (meters)  SHOULD BE LARGER?
     
     
     double cost = 0.0;
@@ -162,6 +160,7 @@ double cost_Closest_Vehicle_Ahead(SelfDrivingCar &sdc, array<vector<TrackedCar>,
 double cost_Speed(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars_ahead, \
                   TrackedCar &min_ahead_car, int &proposed_lane) {
     
+// Change to use MIN_CLEAR_DISTANCE_FOR_NO_COST_MAX_SPEED
 #define FULL_THROTTLE_DISTANCE 75.0  // (meters)
     
     
@@ -186,13 +185,6 @@ double cost_Speed(SelfDrivingCar &sdc, array<vector<TrackedCar>,NUM_LANES> &cars
         cout << "4. cost: speed (under 75m)=" << cost << endl;
         return cost;
     }
-    
-    
-    // Old Speed
-    /*
-     double cost = (MAX_SPEED - sdc.get_future_speed())/MAX_SPEED;
-     cout << "4. cost: speed=" << cost << endl;
-     */
     
     return cost;
 }
@@ -258,14 +250,20 @@ double cost_For_Proposed_Trajectory(SelfDrivingCar &sdc, array<vector<TrackedCar
     get_min_ahead_cars(cars_ahead[proposed_lane], min_ahead_car);
     get_min_behind_cars(cars_behind[proposed_lane], min_behind_car);
     
-    // Project into future
+    // Project into future TWICE!!!
     min_ahead_car.project_future_self(TIME_AHEAD, proposed_lane);
     min_behind_car.project_future_self(TIME_AHEAD, proposed_lane);
-    cout << "lane " << proposed_lane << " min car ahead : now, future: " << min_ahead_car.get_s() << "  " \
-    << min_ahead_car.get_future_s() << " " << endl;
-    cout << "lane " << proposed_lane << " min car behind: now, future: " << min_behind_car.get_s() << "  " \
-    << min_behind_car.get_future_s() << " " << endl;
+    
+    
+    // DONT DO THIS TWICE!!!
+    //cout << "lane " << proposed_lane << " min car ahead : now, future: " << min_ahead_car.get_s() << "  " \
+    //<< min_ahead_car.get_future_s() << " " << endl;
+    //cout << "lane " << proposed_lane << " min car behind: now, future: " << min_behind_car.get_s() << "  " \
+    //<< min_behind_car.get_future_s() << " " << endl;
+    
     //cout << "min cars in future: " << min_ahead_car.get_future_s() << " " << min_behind_car.get_future_s() << endl;
+    
+    
     
     // Calculate total cost. Coefficients are weights of each cost type
     total_cost +=  1000.0 * cost_Collision_Risk(sdc, cars_ahead, cars_behind, min_ahead_car, min_behind_car, proposed_lane);
