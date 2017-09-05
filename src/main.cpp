@@ -28,6 +28,11 @@
 //        meters/second. I have decided for readibility (maybe incorrectly) to do everything INTERNALLY in MPH.
 //        The function mps2mph does the conversions.
 //
+// Next Steps:  Clean up debug/output, Finish migration of main sections to SelfDrivingCar Class,
+//              Switch to carrying the sensor data forward in a buffer in time and using averages, Add a cost fuction
+//              that is a timer for switching lanes to add inverse cost with time so not so moving lanes constantly,
+//              Re-examine being cutoff and emergency slowdowns and recovery (saw some rare cases where not working so well)
+//
 // Created by Steve Horton on 8/15/17. (Derived from starter code supplied by Udacity SD Nanodegree program)
 //----------
 #include <fstream>
@@ -287,12 +292,14 @@ int main() {
          
             
             //
-            // New - Emergency Safety Check before Step #2
-            // <TODO> Need to work on speed back up after clear
+            // Emergency Safety Check before Step #2. This is the place that drops into code in Emergency State
             //
-            if  (min_ahead_cars[lane].get_delta_s() <= SAFETY_DISTANCE) {
+            if  (min_ahead_cars[lane].get_delta_s() <= EMERGENCY_DISTANCE) {
                 av1.set_State(SelfDrivingCar::State::Emergency);
-                cout << "SAFETY engaged! Lane=" << lane << " min ahead detected=" << min_ahead_cars[lane].get_delta_s() << endl;
+                //av1.set_next_State(SelfDrivingCar::State::Emergency);
+                cout << "!SAFETY engaged! Lane=" << lane << " min ahead detected=" << min_ahead_cars[lane].get_delta_s() << endl;
+                cout << "!SAFETY engaged! Current State=" << av1.State_Name[(int)av1.get_State()] << " , Next State=" \
+                << av1.State_Name[(int)av1.get_next_State()] << endl;
             }
             
             
@@ -326,7 +333,7 @@ int main() {
                 // Current State = Emergency State.  Same new State until ahead_vehicle clears enough
                 case (SelfDrivingCar::State::Emergency):
                     
-                    if (min_ahead_cars[lane].get_delta_s() < SAFETY_DISTANCE) {
+                    if (min_ahead_cars[lane].get_delta_s() < EMERGENCY_DISTANCE) {
                         
                         // Fall through - Keep slowing down
                         av1.set_next_State(SelfDrivingCar::State::Emergency);
@@ -362,7 +369,7 @@ int main() {
                     //}
                     //cout << endl;
                     
-                    // Project all vehicles, all lanes ahead for up-coming lane movement check
+                    // Project all vehicles in all lanes ahead for up-coming lane movement check
                     for (int lane=0; lane<=NUM_LANES-1; lane++) {
                         
                         // Detected cars ahead
@@ -389,7 +396,18 @@ int main() {
                             printf("%3d  %8.2f  %8.2f  %8.2f  %8.2f \n",i ,s ,future_s, delta_s, vehicle_speed);
                         }
                     }
-                    //cout << endl;
+                    cout << "tracked cars behind future=\n";
+                    for (int i=0; i<NUM_LANES; i++) {
+                        for (vector<TrackedCar>::iterator it=cars_behind[i].begin(); it!=cars_behind[i].end(); ++it) {
+                            it->project_future_self(TIME_AHEAD,i);
+                            //cout << it->get_future_s() << ",";
+                            double s = it->get_s();
+                            double future_s = it->get_future_s();
+                            double delta_s = future_s - s;
+                            double vehicle_speed = it->get_speed_mph();
+                            printf("%3d  %8.2f  %8.2f  %8.2f  %8.2f \n",i ,s ,future_s, delta_s, vehicle_speed);
+                        }
+                    }
                     
                     
                     // Step #2. Calculate forecasted cost
@@ -425,14 +443,21 @@ int main() {
                             }
                         }
                     }
-                    cout << "OK! current,best next,cost=" << (int)av1.get_State() << " , " << (int)best_next_state << " , " \
-                        << min_cost << endl;
                     
-                    // <TODO> Formalize this: if risk level costs are too high stay put
-                    if (min_cost > 2000.0) best_next_state = SelfDrivingCar::State::KeepLane;
-                    
-                    // This is output
+                    // Best State
                     av1.set_next_State(best_next_state);
+                    av1.set_lane(lane);
+                    cout << "OK! current,next_best,cost=" << av1.State_Name[(int)av1.get_State()] << " , " \
+                         << av1.State_Name[(int)best_next_state] << " , " << min_cost << endl;
+                    
+                    // If cost too high, stay put and slow down
+                    if (min_cost > SAFETY_COST) {
+                        av1.set_next_State(SelfDrivingCar::State::KeepLane);
+                        cout << "Cost too high! Stay put. curr,next,cost=" << av1.State_Name[(int)av1.get_State()] << " , " \
+                        << av1.State_Name[(int)av1.get_next_State()] << " , " << min_cost << endl;
+                    }
+                        
+                   
                 break;
                 
                     
@@ -440,9 +465,9 @@ int main() {
                 case (SelfDrivingCar::State::LaneChangeLeft):
                     
                     lane_change_in_progress_cnt += 1;
-                    if (lane_change_in_progress_cnt <= (int)TIME_AHEAD*FPS) {   // ~2 <TODO> Formalize hold until complete
+                    if (lane_change_in_progress_cnt <= (int)LANE_CHANGE_TIMER*FPS) {   // ~2 <TODO> Formalize hold until complete
                         av1.set_next_State(SelfDrivingCar::State::LaneChangeLeft);
-                    } else if (lane_change_in_progress_cnt >= (int)TIME_AHEAD*FPS) {
+                    } else if (lane_change_in_progress_cnt >= (int)LANE_CHANGE_TIMER*FPS) {
                         lane_change_in_progress_cnt = 0;
                         av1.set_next_State(SelfDrivingCar::State::KeepLane);
                         av1.set_State(SelfDrivingCar::State::KeepLane);
@@ -456,7 +481,7 @@ int main() {
                 case (SelfDrivingCar::State::LaneChangeRight):
                     
                     lane_change_in_progress_cnt += 1;
-                    if (lane_change_in_progress_cnt < (int)TIME_AHEAD*FPS) {   // ~2 <TODO> Formalize hold until complete
+                    if (lane_change_in_progress_cnt < (int)LANE_CHANGE_TIMER*FPS) {   // ~2 <TODO> Formalize hold until complete
                         av1.set_next_State(SelfDrivingCar::State::LaneChangeRight);
                     } else if (lane_change_in_progress_cnt >= (int)LANE_CHANGE_TIMER*FPS) {
                         lane_change_in_progress_cnt = 0;
@@ -497,7 +522,7 @@ int main() {
             // Get States
             curr_state = av1.get_State();
             if (av1.lane_change_in_process()) {
-                next_state = av1.get_State();               // Hold current State while lane change in process
+                next_state = av1.get_State();      // Hold current State while lane change in process
             } else {
                 next_state = av1.get_next_State(); // Change this naming to just "next_State"
             }
@@ -511,7 +536,7 @@ int main() {
                     
                     if (curr_state == SelfDrivingCar::State::Emergency) {
                         
-                        ref_vel -= MAX_ACCEL; // Emergency de-celeration (at project limits)
+                        ref_vel -= 0.95*MAX_ACCEL; // Emergency de-celeration (at project limits)
                         if (DEBUG) cout << "E+E: decel ref_vel=" << ref_vel << endl;
                         
                     } else if (curr_state == SelfDrivingCar::State::KeepLane) {
@@ -539,34 +564,36 @@ int main() {
                     
                     if (curr_state == SelfDrivingCar::State::Emergency) {
                         
-                        ref_vel = 0.02;  // 1.0 (mph) Start-up low speed to slowly come out of ES in same lane
+                        //ref_vel += 0.005*ref_vel;  // 1.0 (mph) Start-up low speed to slowly come out of ES in same lane
+                        av1.set_State(SelfDrivingCar::State::KeepLane);
+                        cout << "Switching from Emergency to KL for current State" << endl;
                     
                     // All other current States actions the same - max speed if clear, slow down & match if car ahead
                     } else {
                         
                         // Full speed limit
-                        if (min_delta > 32.5) {   // meters
+                        if (min_delta >= MIN_CLEAR_AHEAD_FOR_FULL_SPEED) {   // meters
                             
                             ref_vel += MAX_DELTA_SPEED_MPH; // (.44,.4425,.44375) worked,  (.444375, .4441875,.445,.45 ) too much  22 mph sq ~ x m/s
                             ref_vel = min(ref_vel, MAX_SPEED);  // Cap just under speed limit so dont violate
                         
                         // Maintain speed of ahead_car
-                        } else if ((min_delta > 10.0) && (min_delta <= 32.5)) {
+                        } else if ((min_delta >= MIN_CLEAR_AHEAD_FOR_HOLD_SPEED) && (min_delta < MIN_CLEAR_AHEAD_FOR_FULL_SPEED)) {
                             get_min_ahead_cars(cars_ahead[lane], min_car_ahead);
                             double delta_speed_mph = min_car_ahead.v*2.236936292 - av1.get_car_speed();
                             if (DEBUG) cout << "KL: ADJUST SPEED to car ahead(mph)=" << min_car_ahead.get_speed_mph() << "," \
                             << av1.get_car_speed() << "," << delta_speed_mph << "," << ref_vel << endl;;
-                            ref_vel += .02*delta_speed_mph;  // .0175 .015 .00875 ok close delta speed in 1 second (1.0/(1.0*50))  1=100%, 1.0=1 second
+                            ref_vel += .0175*delta_speed_mph;  // .0175 .015 .00875 ok close delta speed in 1 second (1.0/(1.0*50))  1=100%, 1.0=1 second
                         
                         // Back-off if too close
-                        } else if ((min_delta > 5.0) && (min_delta <= 10.0)) {
-                            ref_vel -= .01*ref_vel; //  1mph/1sec(1*50)
-                            cout << "BACKOFF: delta mph=" << .005*ref_vel << "  " << min_delta << endl;
+                        } else if ((min_delta > 0.0) && (min_delta < MIN_CLEAR_AHEAD_FOR_HOLD_SPEED)) {
+                            ref_vel -= .02*ref_vel; //  1mph/1sec(1*50)
+                            cout << "BACKOFF: delta mph=" << .02*ref_vel << "  " << min_delta << endl;
                         }
                     }
                 break;
                 
-                
+                    
                 // Next State = "Lane Change Left"
                 case (SelfDrivingCar::State::LaneChangeLeft):
                     

@@ -47,7 +47,12 @@ void get_min_ahead_cars(vector<TrackedCar> &tracked_cars, TrackedCar &min_delta_
             
             // Speed
             min_delta_s_tracked_car.speed_mph = it->speed_mph;
+            
+            // Future
+            min_delta_s_tracked_car.future_s = it->future_s;
+            min_delta_s_tracked_car.future_d = it->future_d;
             min_delta_s_tracked_car.future_speed_mph = it->future_speed_mph;
+            min_delta_s_tracked_car.future_lane = it->future_lane;
             
         }
         //min_delta_s_tracked_car = (*it);
@@ -94,7 +99,12 @@ void get_min_behind_cars(vector<TrackedCar> &tracked_cars, TrackedCar &min_delta
             
             // Speed
             min_delta_s_tracked_car.speed_mph = it->speed_mph;
+            
+            // Future
+            min_delta_s_tracked_car.future_s = it->future_s;
+            min_delta_s_tracked_car.future_d = it->future_d;
             min_delta_s_tracked_car.future_speed_mph = it->future_speed_mph;
+            min_delta_s_tracked_car.future_lane = it->future_lane;
         }
         
         //min_delta_s = min(min_delta_s, it->delta_s);  // Compare delta_s in TrackedCar object

@@ -140,13 +140,13 @@ void TrackedCar::add_sensor_fusion_data(vector<double> one_car_sensor_fusion, do
     
     
 // Project the tracked car into future to compare future behaviors
-void TrackedCar::project_future_self(double elapsed_time, int next_lane) {
+void TrackedCar::project_future_self(double time, int lane) {
         
-        this->future_s = s + v*elapsed_time;
-        this->future_d = next_lane*LANE_WIDTH + 2;
+        this->future_s = s + v*time;
+        this->future_d = lane*LANE_WIDTH + LANE_WIDTH/2;  // middle of lane
         this->future_v = v;  // m/s
         this->future_speed_mph = speed_mph;
-        this->future_lane = next_lane;
+        this->future_lane = lane;
         //cout << "tracked car: cur s,future s=" << s << "," << future_s << endl;
         //cout << "tracked car: cur d,future d=" << d << "," << future_d << " speed=" << future_speed_mph << endl;
     }
