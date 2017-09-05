@@ -31,7 +31,10 @@
 // Next Steps:  Clean up debug/output, Finish migration of main sections to SelfDrivingCar Class,
 //              Switch to carrying the sensor data forward in a buffer in time and using averages, Add a cost fuction
 //              that is a timer for switching lanes to add inverse cost with time so not so moving lanes constantly,
-//              Re-examine being cutoff and emergency slowdowns and recovery (saw some rare cases where not working so well)
+//              Re-examine being cutoff and emergency slowdowns and recovery (saw some rare cases where not working so well),
+//              Weakest link is spline blowing up when points are not monotonically increasing. Need some prtective sw there.
+//              Solve why sort did not work on array of vectors when not added in order even with overloaded operator. change all
+//              inputs to be english (like 10m/s^2) and change all internal to be metric!)
 //
 // Created by Steve Horton on 8/15/17. (Derived from starter code supplied by Udacity SD Nanodegree program)
 //----------
