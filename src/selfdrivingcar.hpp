@@ -30,6 +30,8 @@ using namespace std;
 
 class SelfDrivingCar{
     
+#define MAX_BUF 3  // # of elements for running averages
+    
 #define FULL_SPEED_TRIGGER_POINT     30.0  // (meters)
 #define MAINTAIN_SPEED_TRIGGER_POINT 10.0  // (meters)
     
@@ -53,6 +55,14 @@ private:
     double sdc_speed;
     double sdc_endpath_s;
     double sdc_endpath_d;
+
+    
+    // FUTURE DEVELOPMENT - CIRCULAR BUFFER OF SPEEDS TO GET BETTER AVERAGE
+    /*
+    double speeds[MAX_BUF] = {};  // Cicular buffer
+    double speed_ave;
+    accumulate(&speeds[0], &speeds[MAX_BUF]) / (double)MAX_BUF;
+    */
     
     // Determined
     SelfDrivingCar::State sdc_state;

@@ -106,8 +106,10 @@ int main() {
     // Key project variables & init values for main
     //
     
-    string map_file_ = "../data/highway_map.csv";      // Waypoint map to read from
-    //string map_file_ = "../data/highway_map_bosch1.csv"; // Waypoint map to read from
+    //string map_file_ = "../data/highway_map.csv";          // Waypoint map file
+    string map_file_ = "../data/highway_map_bosch1.csv"; // Waypoint map file for BOSCH Challenge (before) : Need right Sim
+    //string map_file_ = "../data/highway_map_bosch1_final.csv";   // Waypoint map file for BOSCH Challenge (after) : Need right Sim
+    
    
     long frame_cnt = 0L;                  // Telemetry frame count
     int lane_change_in_progress_cnt = 0;  // Telemetry frame count for lane change progress

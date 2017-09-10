@@ -24,7 +24,7 @@
 #define HORIZON    175.0       // (meters) Horizon over which to track vehicles from sensor data (old: 200,300)
 #define TIME_AHEAD   1.5       // 2.0 (seconds) Time projection ahead for rough trajectory (old: 1.0, 1,5, 1.75)
 
-#define MAX_SPEED  49.8000     // (mph) Max speed allowed minus buffer (49.86 triggered max speed limit)
+#define MAX_SPEED  49.75000     // (mph) Max speed allowed minus buffer (49.86 triggered max speed limit)
 #define MAX_ACCEL   0.3000     // (mph)no=.4425  converted from 10m/s2 requirement to delta vel based on .02 second deltat - delta
                                  // Maximum 10ms2 accleration limit in mph/.02 sec for startup (0.447872584)
                                  // Need to subtract 2 m/s^2 lateral force (.09 mph) for total acceleration
