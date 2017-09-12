@@ -29,6 +29,9 @@ After the Path Panning module was working, I obtained the following results for 
 I was able to run the self driving car for many miles without incident which included following the speed limit (50 mph), comfort rules which included maximum acceleration limit of 10 m/s2, max jerk limit of 10 m/s3, and lane switching time of under 3 seconds.
 
 
+A video of a run on the Bosch Challenge track can be found at [Path Planning output You Tube Video](https://youtu.be/ZetEae-YMm4)
+
+
 ---
 
 ### Project Architecture
