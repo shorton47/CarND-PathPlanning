@@ -17,7 +17,7 @@
 //        Start Messaging handling
 //
 // Main Data Structure Architecture:
-//    Self Driving Vehicle Class (selfdrivingcar.cpp) object
+//    Self Driving Vehicle Class (selfdrivingcar.cpp) & object "av1"
 //    Tracked Cars object (trackedcar.cpp) & array by lane of ahead and behind (ex. cars_ahead[lane], cars_behind[lane])
 //    Matrix of projected costs (projectedcosts[State][lane])
 //
