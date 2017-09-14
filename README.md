@@ -31,7 +31,7 @@ I was able to run the self driving car for many miles without incident which inc
 
 #### Path Planning Result on Bosch Challenge Test Track!
 [![Path Planning Result on Bosch Challenge Track](./images/hqdefault.jpg)](https://youtu.be/ZetEae-YMm4)
-#### Click to run video
+#### Click image to run YouTube video
 
 <!---
  [![Watch the video](https://raw.github.com/GabLeRoux/WebMole/master/ressources/WebMole_Youtube_Video.png)](http://youtu.be/vt5fpE0bzSY)
